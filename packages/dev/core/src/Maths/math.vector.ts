@@ -2013,9 +2013,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the resulting vector
      */
     public rotateByQuaternionToRef<T extends Vector3>(quaternion: Quaternion, result: T): T {
-        quaternion.toRotationMatrix(MathTmp.Matrix[0]);
-        Vector3.TransformCoordinatesToRef(this, MathTmp.Matrix[0], result);
-        return result;
+        return Vector3.TransformCoordinatesToRef(this, quaternion.toRotationMatrix(MathTmp.Matrix[0]), result);
     }
 
     /**
@@ -2027,10 +2025,8 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the resulting vector
      */
     public rotateByQuaternionAroundPointToRef<T extends Vector3>(quaternion: Quaternion, point: Vector3, result: T): T {
-        this.subtractToRef(point, MathTmp.Vector3[0]);
-        MathTmp.Vector3[0].rotateByQuaternionToRef(quaternion, MathTmp.Vector3[0]);
-        point.addToRef(MathTmp.Vector3[0], result);
-        return result;
+        this.subtractToRef(point, MathTmp.Vector3[0]).rotateByQuaternionToRef(quaternion, MathTmp.Vector3[0]);
+        return point.addToRef(MathTmp.Vector3[0], result);
     }
 
     /**
@@ -2180,8 +2176,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         dot = Clamp(dot, -1, 1);
 
         const angle = Math.acos(dot);
-        const n = MathTmp.Vector3[3];
-        Vector3.CrossToRef(v0, v1, n);
+        const n = Vector3.CrossToRef(v0, v1, MathTmp.Vector3[3]);
         if (Vector3.Dot(n, normal) > 0) {
             return isNaN(angle) ? 0 : angle;
         }
@@ -2198,21 +2193,11 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the angle in radians (float) between vector0 and vector1 projected on the plane with the specified normal
      */
     public static GetAngleBetweenVectorsOnPlane(vector0: DeepImmutable<Vector3>, vector1: DeepImmutable<Vector3>, normal: DeepImmutable<Vector3>): number {
-        MathTmp.Vector3[0].copyFrom(vector0);
-        const v0 = MathTmp.Vector3[0];
-        MathTmp.Vector3[1].copyFrom(vector1);
-        const v1 = MathTmp.Vector3[1];
-        MathTmp.Vector3[2].copyFrom(normal);
-        const vNormal = MathTmp.Vector3[2];
-        const right = MathTmp.Vector3[3];
-        const forward = MathTmp.Vector3[4];
-
-        v0.normalize();
-        v1.normalize();
-        vNormal.normalize();
-
-        Vector3.CrossToRef(vNormal, v0, right);
-        Vector3.CrossToRef(right, vNormal, forward);
+        const v0 = MathTmp.Vector3[0].copyFrom(vector0).normalize();
+        const v1 = MathTmp.Vector3[1].copyFrom(vector1).normalize();
+        const vNormal = MathTmp.Vector3[2].copyFrom(normal).normalize();
+        const right = Vector3.CrossToRef(vNormal, v0, MathTmp.Vector3[3]);
+        const forward = Vector3.CrossToRef(right, vNormal, MathTmp.Vector3[4]);
 
         const angle = Math.atan2(Vector3.Dot(v1, right), Vector3.Dot(v1, forward));
 
@@ -2228,8 +2213,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns ref in the form (pitch, yaw, 0)
      */
     public static PitchYawRollToMoveBetweenPointsToRef<T extends Vector3>(start: Vector3, target: Vector3, ref: T): T {
-        const diff = TmpVectors.Vector3[0];
-        target.subtractToRef(start, diff);
+        const diff = target.subtractToRef(start, TmpVectors.Vector3[0]);
         ref._y = Math.atan2(diff.x, diff.z) || 0;
         ref._x = Math.atan2(Math.sqrt(diff.x ** 2 + diff.z ** 2), diff.y) || 0;
         ref._z = 0;
@@ -2245,8 +2229,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the rotation in the form (pitch, yaw, 0)
      */
     public static PitchYawRollToMoveBetweenPoints(start: Vector3, target: Vector3): Vector3 {
-        const ref = Vector3.Zero();
-        return Vector3.PitchYawRollToMoveBetweenPointsToRef(start, target, ref);
+        return Vector3.PitchYawRollToMoveBetweenPointsToRef(start, target, Vector3.Zero());
     }
 
     /**
@@ -2293,8 +2276,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         vector0Dir.scaleInPlace(scale0);
         vector1Dir.scaleInPlace(scale1);
         result.copyFrom(vector0Dir).addInPlace(vector1Dir);
-        result.scaleInPlace(Lerp(vector0Length, vector1Length, slerp));
-        return result;
+        return result.scaleInPlace(Lerp(vector0Length, vector1Length, slerp));
     }
 
     /**
@@ -2372,8 +2354,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the result vector
      */
     public static FromFloatsToRef<T extends Vector3 = Vector3>(x: number, y: number, z: number, result: T): T {
-        result.copyFromFloats(x, y, z);
-        return result;
+        return result.copyFromFloats(x, y, z);
     }
 
     /**
@@ -2542,9 +2523,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the transformed Vector3
      */
     public static TransformCoordinates(vector: DeepImmutable<Vector3>, transformation: DeepImmutable<Matrix>): Vector3 {
-        const result = Vector3.Zero();
-        Vector3.TransformCoordinatesToRef(vector, transformation, result);
-        return result;
+        return Vector3.TransformCoordinatesToRef(vector, transformation, Vector3.Zero());
     }
 
     /**
@@ -2557,8 +2536,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns result input
      */
     public static TransformCoordinatesToRef<T extends Vector3>(vector: DeepImmutable<Vector3>, transformation: DeepImmutable<Matrix>, result: T): T {
-        Vector3.TransformCoordinatesFromFloatsToRef(vector._x, vector._y, vector._z, transformation, result);
-        return result;
+        return Vector3.TransformCoordinatesFromFloatsToRef(vector._x, vector._y, vector._z, transformation, result);
     }
 
     /**
@@ -2595,9 +2573,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static TransformNormal(vector: DeepImmutable<Vector3>, transformation: DeepImmutable<Matrix>): Vector3 {
-        const result = Vector3.Zero();
-        Vector3.TransformNormalToRef(vector, transformation, result);
-        return result;
+        return Vector3.TransformNormalToRef(vector, transformation, Vector3.Zero());
     }
 
     /**
@@ -2610,8 +2586,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns result input
      */
     public static TransformNormalToRef<T extends Vector3>(vector: DeepImmutable<Vector3>, transformation: DeepImmutable<Matrix>, result: T): T {
-        this.TransformNormalFromFloatsToRef(vector._x, vector._y, vector._z, transformation, result);
-        return result;
+        return this.TransformNormalFromFloatsToRef(vector._x, vector._y, vector._z, transformation, result);
     }
 
     /**
@@ -2689,9 +2664,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Clamp(value: DeepImmutable<Vector3>, min: DeepImmutable<Vector3>, max: DeepImmutable<Vector3>): Vector3 {
-        const result = new Vector3();
-        Vector3.ClampToRef(value, min, max, result);
-        return result;
+        return Vector3.ClampToRef(value, min, max, new Vector3());
     }
 
     /**
@@ -2718,8 +2691,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         z = z > max._z ? max._z : z;
         z = z < min._z ? min._z : z;
 
-        result.copyFromFloats(x, y, z);
-        return result;
+        return result.copyFromFloats(x, y, z);
     }
 
     /**
@@ -2781,11 +2753,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         tangent2: DeepImmutable<Vector3>,
         time: number
     ): Vector3 {
-        const result = new Vector3();
-
-        this.Hermite1stDerivativeToRef(value1, tangent1, value2, tangent2, time, result);
-
-        return result;
+        return this.Hermite1stDerivativeToRef(value1, tangent1, value2, tangent2, time, new Vector3());
     }
 
     /**
@@ -2825,9 +2793,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Lerp(start: DeepImmutable<Vector3>, end: DeepImmutable<Vector3>, amount: number): Vector3 {
-        const result = new Vector3(0, 0, 0);
-        Vector3.LerpToRef(start, end, amount, result);
-        return result;
+        return Vector3.LerpToRef(start, end, amount, new Vector3());
     }
 
     /**
@@ -2876,9 +2842,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the cross product
      */
     public static Cross(left: DeepImmutable<Vector3>, right: DeepImmutable<Vector3>): Vector3 {
-        const result = new Vector3();
-        Vector3.CrossToRef(left, right, result);
-        return result;
+        return Vector3.CrossToRef(left, right, new Vector3());
     }
 
     /**
@@ -2905,9 +2869,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Normalize(vector: DeepImmutable<Vector3>): Vector3 {
-        const result = Vector3.Zero();
-        Vector3.NormalizeToRef(vector, result);
-        return result;
+        return Vector3.NormalizeToRef(vector, new Vector3());
     }
 
     /**
@@ -2932,9 +2894,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Project(vector: DeepImmutable<Vector3>, world: DeepImmutable<Matrix>, transform: DeepImmutable<Matrix>, viewport: DeepImmutable<Viewport>): Vector3 {
-        const result = new Vector3();
-        Vector3.ProjectToRef(vector, world, transform, viewport, result);
-        return result;
+        return Vector3.ProjectToRef(vector, world, transform, viewport, new Vector3());
     }
 
     /**
@@ -2971,8 +2931,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         world.multiplyToRef(transform, matrix);
         matrix.multiplyToRef(viewportMatrix, matrix);
 
-        Vector3.TransformCoordinatesToRef(vector, matrix, result);
-        return result;
+        return Vector3.TransformCoordinatesToRef(vector, matrix, result);
     }
 
     /**
@@ -2993,9 +2952,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the resulting vector
      */
     public static ReflectToRef<T extends Vector3>(inDirection: DeepImmutable<Vector3>, normal: DeepImmutable<Vector3>, ref: T): T {
-        const tmp = TmpVectors.Vector3[0];
-        tmp.copyFrom(normal).scaleInPlace(2 * Vector3.Dot(inDirection, normal));
-
+        const tmp = TmpVectors.Vector3[0].copyFrom(normal).scaleInPlace(2 * Vector3.Dot(inDirection, normal));
         return ref.copyFrom(inDirection).subtractInPlace(tmp);
     }
 
@@ -3051,11 +3008,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         view: DeepImmutable<Matrix>,
         projection: DeepImmutable<Matrix>
     ): Vector3 {
-        const result = new Vector3();
-
-        Vector3.UnprojectToRef(source, viewportWidth, viewportHeight, world, view, projection, result);
-
-        return result;
+        return Vector3.UnprojectToRef(source, viewportWidth, viewportHeight, world, view, projection, new Vector3());
     }
 
     /**
@@ -3079,8 +3032,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
         projection: DeepImmutable<Matrix>,
         result: T
     ): T {
-        Vector3.UnprojectFloatsToRef(source._x, source._y, source._z, viewportWidth, viewportHeight, world, view, projection, result);
-        return result;
+        return Vector3.UnprojectFloatsToRef(source._x, source._y, source._z, viewportWidth, viewportHeight, world, view, projection, result);
     }
 
     /**
@@ -3122,8 +3074,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
             screenSource.z = 2 * sourceZ - 1.0;
         }
 
-        Vector3._UnprojectFromInvertedMatrixToRef(screenSource, matrix, result);
-        return result;
+        return Vector3._UnprojectFromInvertedMatrixToRef(screenSource, matrix, result);
     }
 
     /**
@@ -3134,10 +3085,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Minimize(left: DeepImmutable<Vector3>, right: DeepImmutable<Vector3>): Vector3 {
-        const min = new Vector3();
-        min.copyFrom(left);
-        min.minimizeInPlace(right);
-        return min;
+        return new Vector3().copyFrom(left).minimizeInPlace(right);
     }
 
     /**
@@ -3148,10 +3096,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns the new Vector3
      */
     public static Maximize(left: DeepImmutable<Vector3>, right: DeepImmutable<Vector3>): Vector3 {
-        const max = new Vector3();
-        max.copyFrom(left);
-        max.maximizeInPlace(right);
-        return max;
+        return new Vector3().copyFrom(left).maximizeInPlace(right);
     }
 
     /**
@@ -3373,9 +3318,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/transforms/center_origin/target_align
      */
     public static RotationFromAxis(axis1: DeepImmutable<Vector3>, axis2: DeepImmutable<Vector3>, axis3: DeepImmutable<Vector3>): Vector3 {
-        const rotation = new Vector3();
-        Vector3.RotationFromAxisToRef(axis1, axis2, axis3, rotation);
-        return rotation;
+        return Vector3.RotationFromAxisToRef(axis1, axis2, axis3, new Vector3());
     }
 
     /**
@@ -3388,10 +3331,7 @@ export class Vector3 implements Vector<Tuple<number, 3>, Vector3LikeInternal>, I
      * @returns result input
      */
     public static RotationFromAxisToRef<T extends Vector3>(axis1: DeepImmutable<Vector3>, axis2: DeepImmutable<Vector3>, axis3: DeepImmutable<Vector3>, ref: T): T {
-        const quat = MathTmp.Quaternion[0];
-        Quaternion.RotationQuaternionFromAxisToRef(axis1, axis2, axis3, quat);
-        quat.toEulerAnglesToRef(ref);
-        return ref;
+        return Quaternion.RotationQuaternionFromAxisToRef(axis1, axis2, axis3, MathTmp.Quaternion[0]).toEulerAnglesToRef(ref);
     }
 }
 Vector3 satisfies VectorStatic<Vector3, Vector3LikeInternal>;
@@ -4086,9 +4026,7 @@ export class Vector4 implements Vector<Tuple<number, 4>, IVector4Like>, IVector4
      * @returns the new vector
      */
     public static FromArray(array: DeepImmutable<ArrayLike<number>>, offset?: number): Vector4 {
-        if (!offset) {
-            offset = 0;
-        }
+        offset ??= 0;
         return new Vector4(array[offset], array[offset + 1], array[offset + 2], array[offset + 3]);
     }
     /**
@@ -4113,8 +4051,7 @@ export class Vector4 implements Vector<Tuple<number, 4>, IVector4Like>, IVector4
      * @returns result input
      */
     public static FromFloatArrayToRef<T extends IVector4Like>(array: DeepImmutable<Float32Array>, offset: number, result: T): T {
-        Vector4.FromArrayToRef(array, offset, result);
-        return result;
+        return Vector4.FromArrayToRef(array, offset, result);
     }
     /**
      * Updates the given vector "result" coordinates from the given floats.
@@ -4236,8 +4173,7 @@ export class Vector4 implements Vector<Tuple<number, 4>, IVector4Like>, IVector4
      * @returns result input
      */
     public static NormalizeToRef<T extends IVector4Like>(vector: DeepImmutable<Vector4>, result: T): T {
-        vector.normalizeToRef(result);
-        return result;
+        return vector.normalizeToRef(result);
     }
 
     /**
@@ -4247,10 +4183,7 @@ export class Vector4 implements Vector<Tuple<number, 4>, IVector4Like>, IVector4
      * @returns a new vector with the minimum of the left and right vector values
      */
     public static Minimize<T extends Vector4>(left: DeepImmutable<T>, right: DeepImmutable<Vector4>): Vector4 {
-        const min = new Vector4();
-        min.copyFrom(left);
-        min.minimizeInPlace(right);
-        return min;
+        return new Vector4().copyFrom(left).minimizeInPlace(right);
     }
 
     /**
@@ -4260,10 +4193,7 @@ export class Vector4 implements Vector<Tuple<number, 4>, IVector4Like>, IVector4
      * @returns a new vector with the maximum of the left and right vector values
      */
     public static Maximize(left: DeepImmutable<IVector4Like>, right: DeepImmutable<IVector4Like>): Vector4 {
-        const max = new Vector4();
-        max.copyFrom(left);
-        max.maximizeInPlace(right);
-        return max;
+        return new Vector4().copyFrom(left).maximizeInPlace(right);
     }
     /**
      * Returns the distance (float) between the vectors "value1" and "value2".
@@ -7415,8 +7345,9 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @param initialM43 defines 3rd value of 4th row
      * @param initialM44 defines 4th value of 4th row
      * @param result defines the target matrix
+     * @returns the result matrix
      */
-    public static FromValuesToRef(
+    public static FromValuesToRef<T extends Matrix>(
         initialM11: number,
         initialM12: number,
         initialM13: number,
@@ -7433,8 +7364,8 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         initialM42: number,
         initialM43: number,
         initialM44: number,
-        result: Matrix
-    ): void {
+        result: T
+    ): T {
         const m = result._m;
         m[0] = initialM11;
         m[1] = initialM12;
@@ -7454,6 +7385,8 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         m[15] = initialM44;
 
         result.markAsUpdated();
+
+        return result;
     }
 
     /**
@@ -7525,9 +7458,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns a new matrix
      */
     public static Compose(scale: DeepImmutable<Vector3>, rotation: DeepImmutable<Quaternion>, translation: DeepImmutable<Vector3>): Matrix {
-        const result = new Matrix();
-        Matrix.ComposeToRef(scale, rotation, translation, result);
-        return result;
+        return Matrix.ComposeToRef(scale, rotation, translation, new Matrix());
     }
 
     /**
@@ -7624,9 +7555,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static RotationX(angle: number): Matrix {
-        const result = new Matrix();
-        Matrix.RotationXToRef(angle, result);
-        return result;
+        return Matrix.RotationXToRef(angle, new Matrix());
     }
 
     /**
@@ -7636,9 +7565,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static Invert(source: DeepImmutable<Matrix>): Matrix {
-        const result = new Matrix();
-        source.invertToRef(result);
-        return result;
+        return source.invertToRef(new Matrix());
     }
 
     /**
@@ -7664,9 +7591,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static RotationY(angle: number): Matrix {
-        const result = new Matrix();
-        Matrix.RotationYToRef(angle, result);
-        return result;
+        return Matrix.RotationYToRef(angle, new Matrix());
     }
 
     /**
@@ -7692,9 +7617,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static RotationZ(angle: number): Matrix {
-        const result = new Matrix();
-        Matrix.RotationZToRef(angle, result);
-        return result;
+        return Matrix.RotationZToRef(angle, new Matrix());
     }
 
     /**
@@ -7721,9 +7644,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static RotationAxis(axis: DeepImmutable<Vector3>, angle: number): Matrix {
-        const result = new Matrix();
-        Matrix.RotationAxisToRef(axis, angle, result);
-        return result;
+        return Matrix.RotationAxisToRef(axis, angle, new Matrix());
     }
 
     /**
@@ -7828,9 +7749,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new rotation matrix
      */
     public static RotationYawPitchRoll(yaw: number, pitch: number, roll: number): Matrix {
-        const result = new Matrix();
-        Matrix.RotationYawPitchRollToRef(yaw, pitch, roll, result);
-        return result;
+        return Matrix.RotationYawPitchRollToRef(yaw, pitch, roll, new Matrix());
     }
 
     /**
@@ -7843,9 +7762,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns result input
      */
     public static RotationYawPitchRollToRef<T extends Matrix>(yaw: number, pitch: number, roll: number, result: T): T {
-        Quaternion.RotationYawPitchRollToRef(yaw, pitch, roll, MathTmp.Quaternion[0]);
-        MathTmp.Quaternion[0].toRotationMatrix(result);
-        return result;
+        return Quaternion.RotationYawPitchRollToRef(yaw, pitch, roll, MathTmp.Quaternion[0]).toRotationMatrix(result);
     }
 
     /**
@@ -7857,9 +7774,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static Scaling(x: number, y: number, z: number): Matrix {
-        const result = new Matrix();
-        Matrix.ScalingToRef(x, y, z, result);
-        return result;
+        return Matrix.ScalingToRef(x, y, z, new Matrix());
     }
 
     /**
@@ -7887,9 +7802,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static Translation(x: number, y: number, z: number): Matrix {
-        const result = new Matrix();
-        Matrix.TranslationToRef(x, y, z, result);
-        return result;
+        return Matrix.TranslationToRef(x, y, z, new Matrix());
     }
 
     /**
@@ -7916,9 +7829,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static Lerp(startValue: DeepImmutable<Matrix>, endValue: DeepImmutable<Matrix>, gradient: number): Matrix {
-        const result = new Matrix();
-        Matrix.LerpToRef(startValue, endValue, gradient, result);
-        return result;
+        return Matrix.LerpToRef(startValue, endValue, gradient, new Matrix());
     }
 
     /**
@@ -7954,9 +7865,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static DecomposeLerp(startValue: DeepImmutable<Matrix>, endValue: DeepImmutable<Matrix>, gradient: number): Matrix {
-        const result = new Matrix();
-        Matrix.DecomposeLerpToRef(startValue, endValue, gradient, result);
-        return result;
+        return Matrix.DecomposeLerpToRef(startValue, endValue, gradient, new Matrix());
     }
 
     /**
@@ -7991,8 +7900,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         const resultTranslation = MathTmp.Vector3[5];
         Vector3.LerpToRef(startTranslation, endTranslation, gradient, resultTranslation);
 
-        Matrix.ComposeToRef(resultScale, resultRotation, resultTranslation, result);
-        return result;
+        return Matrix.ComposeToRef(resultScale, resultRotation, resultTranslation, result);
     }
 
     /**
@@ -8006,9 +7914,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static LookAtLH(eye: DeepImmutable<Vector3>, target: DeepImmutable<Vector3>, up: DeepImmutable<Vector3>): Matrix {
-        const result = new Matrix();
-        Matrix.LookAtLHToRef(eye, target, up, result);
-        return result;
+        return Matrix.LookAtLHToRef(eye, target, up, new Matrix());
     }
 
     /**
@@ -8050,8 +7956,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         const ey = -Vector3.Dot(yAxis, eye);
         const ez = -Vector3.Dot(zAxis, eye);
 
-        Matrix.FromValuesToRef(xAxis._x, yAxis._x, zAxis._x, 0.0, xAxis._y, yAxis._y, zAxis._y, 0.0, xAxis._z, yAxis._z, zAxis._z, 0.0, ex, ey, ez, 1.0, result);
-        return result;
+        return Matrix.FromValuesToRef(xAxis._x, yAxis._x, zAxis._x, 0.0, xAxis._y, yAxis._y, zAxis._y, 0.0, xAxis._z, yAxis._z, zAxis._z, 0.0, ex, ey, ez, 1.0, result);
     }
 
     /**
@@ -8065,9 +7970,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static LookAtRH(eye: DeepImmutable<Vector3>, target: DeepImmutable<Vector3>, up: DeepImmutable<Vector3>): Matrix {
-        const result = new Matrix();
-        Matrix.LookAtRHToRef(eye, target, up, result);
-        return result;
+        return Matrix.LookAtRHToRef(eye, target, up, new Matrix());
     }
 
     /**
@@ -8109,8 +8012,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         const ey = -Vector3.Dot(yAxis, eye);
         const ez = -Vector3.Dot(zAxis, eye);
 
-        Matrix.FromValuesToRef(xAxis._x, yAxis._x, zAxis._x, 0.0, xAxis._y, yAxis._y, zAxis._y, 0.0, xAxis._z, yAxis._z, zAxis._z, 0.0, ex, ey, ez, 1.0, result);
-        return result;
+        return Matrix.FromValuesToRef(xAxis._x, yAxis._x, zAxis._x, 0.0, xAxis._y, yAxis._y, zAxis._y, 0.0, xAxis._z, yAxis._z, zAxis._z, 0.0, ex, ey, ez, 1.0, result);
     }
 
     /**
@@ -8122,9 +8024,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static LookDirectionLH(forward: DeepImmutable<Vector3>, up: DeepImmutable<Vector3>): Matrix {
-        const result = new Matrix();
-        Matrix.LookDirectionLHToRef(forward, up, result);
-        return result;
+        return Matrix.LookDirectionLHToRef(forward, up, new Matrix());
     }
 
     /**
@@ -8144,8 +8044,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         Vector3.CrossToRef(up, back, left);
 
         // Generate the rotation matrix.
-        Matrix.FromValuesToRef(left._x, left._y, left._z, 0.0, up._x, up._y, up._z, 0.0, back._x, back._y, back._z, 0.0, 0, 0, 0, 1.0, result);
-        return result;
+        return Matrix.FromValuesToRef(left._x, left._y, left._z, 0.0, up._x, up._y, up._z, 0.0, back._x, back._y, back._z, 0.0, 0, 0, 0, 1.0, result);
     }
 
     /**
@@ -8176,8 +8075,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         Vector3.CrossToRef(up, forward, right);
 
         // Generate the rotation matrix.
-        Matrix.FromValuesToRef(right._x, right._y, right._z, 0.0, up._x, up._y, up._z, 0.0, forward._x, forward._y, forward._z, 0.0, 0, 0, 0, 1.0, result);
-        return result;
+        return Matrix.FromValuesToRef(right._x, right._y, right._z, 0.0, up._x, up._y, up._z, 0.0, forward._x, forward._y, forward._z, 0.0, 0, 0, 0, 1.0, result);
     }
 
     /**
@@ -8191,9 +8089,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns a new matrix as a left-handed orthographic projection matrix
      */
     public static OrthoLH(width: number, height: number, znear: number, zfar: number, halfZRange?: boolean): Matrix {
-        const matrix = new Matrix();
-        Matrix.OrthoLHToRef(width, height, znear, zfar, matrix, halfZRange);
-        return matrix;
+        return Matrix.OrthoLHToRef(width, height, znear, zfar, new Matrix(), halfZRange);
     }
 
     /**
@@ -8239,9 +8135,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns a new matrix as a left-handed orthographic projection matrix
      */
     public static OrthoOffCenterLH(left: number, right: number, bottom: number, top: number, znear: number, zfar: number, halfZRange?: boolean): Matrix {
-        const matrix = new Matrix();
-        Matrix.OrthoOffCenterLHToRef(left, right, bottom, top, znear, zfar, matrix, halfZRange);
-        return matrix;
+        return Matrix.OrthoOffCenterLHToRef(left, right, bottom, top, znear, zfar, new Matrix(), halfZRange);
     }
 
     /**
@@ -8343,9 +8237,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns a new matrix as a right-handed orthographic projection matrix
      */
     public static OrthoOffCenterRH(left: number, right: number, bottom: number, top: number, znear: number, zfar: number, halfZRange?: boolean): Matrix {
-        const matrix = new Matrix();
-        Matrix.OrthoOffCenterRHToRef(left, right, bottom, top, znear, zfar, matrix, halfZRange);
-        return matrix;
+        return Matrix.OrthoOffCenterRHToRef(left, right, bottom, top, znear, zfar, new Matrix(), halfZRange);
     }
 
     /**
@@ -8473,9 +8365,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         projectionPlaneTilt: number = 0,
         reverseDepthBufferMode: boolean = false
     ): Matrix {
-        const matrix = new Matrix();
-        Matrix.PerspectiveFovLHToRef(fov, aspect, znear, zfar, matrix, true, halfZRange, projectionPlaneTilt, reverseDepthBufferMode);
-        return matrix;
+        return Matrix.PerspectiveFovLHToRef(fov, aspect, znear, zfar, new Matrix(), true, halfZRange, projectionPlaneTilt, reverseDepthBufferMode);
     }
 
     /**
@@ -8580,9 +8470,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
         projectionPlaneTilt: number = 0,
         reverseDepthBufferMode: boolean = false
     ): Matrix {
-        const matrix = new Matrix();
-        Matrix.PerspectiveFovRHToRef(fov, aspect, znear, zfar, matrix, true, halfZRange, projectionPlaneTilt, reverseDepthBufferMode);
-        return matrix;
+        return Matrix.PerspectiveFovRHToRef(fov, aspect, znear, zfar, new Matrix(), true, halfZRange, projectionPlaneTilt, reverseDepthBufferMode);
     }
 
     /**
@@ -8733,9 +8621,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns the new matrix
      */
     public static Transpose(matrix: DeepImmutable<Matrix>): Matrix {
-        const result = new Matrix();
-        Matrix.TransposeToRef(matrix, result);
-        return result;
+        return Matrix.TransposeToRef(matrix, new Matrix());
     }
 
     /**
@@ -8798,9 +8684,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns a new matrix
      */
     public static Reflection(plane: DeepImmutable<IPlaneLike>): Matrix {
-        const matrix = new Matrix();
-        Matrix.ReflectionToRef(plane, matrix);
-        return matrix;
+        return Matrix.ReflectionToRef(plane, new Matrix());
     }
 
     /**
@@ -8849,8 +8733,7 @@ export class Matrix implements Tensor<Tuple<Tuple<number, 4>, 4>, Matrix>, IMatr
      * @returns result input
      */
     public static FromXYZAxesToRef<T extends Matrix>(xaxis: DeepImmutable<Vector3>, yaxis: DeepImmutable<Vector3>, zaxis: DeepImmutable<Vector3>, result: T): T {
-        Matrix.FromValuesToRef(xaxis._x, xaxis._y, xaxis._z, 0.0, yaxis._x, yaxis._y, yaxis._z, 0.0, zaxis._x, zaxis._y, zaxis._z, 0.0, 0.0, 0.0, 0.0, 1.0, result);
-        return result;
+        return Matrix.FromValuesToRef(xaxis._x, xaxis._y, xaxis._z, 0.0, yaxis._x, yaxis._y, yaxis._z, 0.0, zaxis._x, zaxis._y, zaxis._z, 0.0, 0.0, 0.0, 0.0, 1.0, result);
     }
 
     /**

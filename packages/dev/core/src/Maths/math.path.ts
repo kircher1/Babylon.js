@@ -872,8 +872,7 @@ export class Path3D {
     /**
      * Updates the point at data for an interpolated point along this curve
      * @param position the position of the point along this curve, from 0.0 to 1.0
-     * @param interpolateTNB
-     * @interpolateTNB whether to compute the interpolated tangent, normal and binormal
+     * @param interpolateTNB whether to compute the interpolated tangent, normal and binormal
      * @returns the (updated) point at data
      */
     private _updatePointAtData(position: number, interpolateTNB: boolean = false) {
