@@ -1998,6 +1998,18 @@ export class ThinEngine extends AbstractEngine {
         if (this._gl) {
             getStateObject(this._gl);
         }
+
+        // If options were used, override the error handling function to call onEffectErrorObservable.
+        if ((<IEffectCreationOptions>attributesNamesOrOptions).attributes) {
+            const originalOnError = (<IEffectCreationOptions>attributesNamesOrOptions).onError;
+            const copy = { ...attributesNamesOrOptions };
+            (<IEffectCreationOptions>copy).onError = (effect: Effect, errors: string) => {
+                originalOnError?.(effect, errors);
+                this.onEffectErrorObservable.notifyObservers({ effect, errors });
+            };
+            attributesNamesOrOptions = copy;
+        }
+
         const effect = new Effect(
             baseName,
             attributesNamesOrOptions,
