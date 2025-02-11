@@ -1,7 +1,8 @@
 // eslint-disable-next-line import/no-internal-modules
-import type { FrameGraph, FrameGraphObjectList, IFrameGraphPass, Nullable, FrameGraphTextureHandle, InternalTexture } from "core/index";
+import type { FrameGraph, FrameGraphObjectList, IFrameGraphPass, Nullable, FrameGraphTextureHandle, InternalTexture, FrameGraphRenderContext } from "core/index";
 import { FrameGraphCullPass } from "./Passes/cullPass";
 import { FrameGraphRenderPass } from "./Passes/renderPass";
+import { Observable } from "core/Misc/observable";
 
 /**
  * Represents a task in a frame graph.
@@ -9,7 +10,6 @@ import { FrameGraphRenderPass } from "./Passes/renderPass";
  */
 export abstract class FrameGraphTask {
     protected readonly _frameGraph: FrameGraph;
-    protected readonly _internalDependencies: FrameGraphTextureHandle[] = [];
 
     private readonly _passes: IFrameGraphPass[] = [];
     private readonly _passesDisabled: IFrameGraphPass[] = [];
@@ -43,14 +43,33 @@ export abstract class FrameGraphTask {
     }
 
     /**
+     * Gets the render passes of the task.
+     */
+    public get passes() {
+        return this._passes;
+    }
+
+    /**
+     * Gets the disabled render passes of the task.
+     */
+    public get passesDisabled() {
+        return this._passesDisabled;
+    }
+
+    /**
      * The (texture) dependencies of the task (optional).
      */
-    public dependencies?: FrameGraphTextureHandle[];
+    public dependencies?: Set<FrameGraphTextureHandle>;
 
     /**
      * Records the task in the frame graph. Use this function to add content (render passes, ...) to the task.
      */
     public abstract record(): void;
+
+    /**
+     * An observable that is triggered after the textures have been allocated.
+     */
+    public onTexturesAllocatedObservable: Observable<FrameGraphRenderContext> = new Observable();
 
     /**
      * Checks if the task is ready to be executed.
@@ -65,6 +84,7 @@ export abstract class FrameGraphTask {
      */
     public dispose() {
         this._reset();
+        this.onTexturesAllocatedObservable.clear();
     }
 
     /**
@@ -82,7 +102,6 @@ export abstract class FrameGraphTask {
     public _reset() {
         this._passes.length = 0;
         this._passesDisabled.length = 0;
-        this._internalDependencies.length = 0;
     }
 
     /** @internal */

@@ -6,7 +6,7 @@ import type { IAnimatable } from "../Animations/animatable.interface";
 
 import type { Nullable } from "../types";
 import { Scene } from "../scene";
-import { Matrix } from "../Maths/math.vector";
+import type { Matrix } from "../Maths/math.vector";
 import { Color3 } from "../Maths/math.color";
 import { VertexBuffer } from "../Buffers/buffer";
 import type { SubMesh } from "../Meshes/subMesh";
@@ -226,6 +226,7 @@ export class StandardMaterialDefines extends MaterialDefines implements IImagePr
     public ORDER_INDEPENDENT_TRANSPARENCY_16BITS = false;
     public CAMERA_ORTHOGRAPHIC = false;
     public CAMERA_PERSPECTIVE = false;
+    public AREALIGHTSUPPORTED = true;
 
     /**
      * If the reflection texture on this material is in linear color space
@@ -809,7 +810,6 @@ export class StandardMaterial extends PushMaterial {
     public readonly detailMap: DetailMapConfiguration;
 
     protected _renderTargets = new SmartArray<RenderTargetTexture>(16);
-    protected _worldViewProjectionMatrix = Matrix.Zero();
     protected _globalAmbientColor = new Color3(0, 0, 0);
     protected _cacheHasRenderTargetTextures = false;
 
@@ -878,6 +878,10 @@ export class StandardMaterial extends PushMaterial {
      * @returns a boolean specifying if alpha blending is needed
      */
     public override needAlphaBlending(): boolean {
+        if (this._hasTransparencyMode) {
+            return this._transparencyModeIsBlend;
+        }
+
         if (this._disableAlphaBlending) {
             return false;
         }
@@ -895,8 +899,8 @@ export class StandardMaterial extends PushMaterial {
      * @returns a boolean specifying if an alpha test is needed.
      */
     public override needAlphaTesting(): boolean {
-        if (this._forceAlphaTest) {
-            return true;
+        if (this._hasTransparencyMode) {
+            return this._transparencyModeIsTest;
         }
 
         return this._hasAlphaChannel() && (this._transparencyMode == null || this._transparencyMode === Material.MATERIAL_ALPHATEST);
@@ -1221,6 +1225,15 @@ export class StandardMaterial extends PushMaterial {
             }
         }
 
+        // Check if Area Lights have LTC texture.
+        if (defines["AREALIGHTUSED"]) {
+            for (let index = 0; index < mesh.lightSources.length; index++) {
+                if (!mesh.lightSources[index]._isReady()) {
+                    return false;
+                }
+            }
+        }
+
         // Misc.
         PrepareDefinesForMisc(
             mesh,
@@ -1228,7 +1241,7 @@ export class StandardMaterial extends PushMaterial {
             this._useLogarithmicDepth,
             this.pointsCloud,
             this.fogEnabled,
-            this._shouldTurnAlphaTestOn(mesh) || this._forceAlphaTest,
+            this.needAlphaTestingForMesh(mesh),
             defines,
             this._applyDecalMapAfterDetailMap
         );
@@ -1425,6 +1438,8 @@ export class StandardMaterial extends PushMaterial {
                 "morphTargets",
                 "oitDepthSampler",
                 "oitFrontColorSampler",
+                "areaLightsLTC1Sampler",
+                "areaLightsLTC2Sampler",
             ];
 
             const uniformBuffers = ["Material", "Scene", "Mesh"];
@@ -1708,6 +1723,8 @@ export class StandardMaterial extends PushMaterial {
                             ubo.updateVector3("vReflectionPosition", cubeTexture.boundingBoxPosition);
                             ubo.updateVector3("vReflectionSize", cubeTexture.boundingBoxSize);
                         }
+                    } else {
+                        ubo.updateFloat2("vReflectionInfos", 0.0, this.roughness);
                     }
 
                     if (this._emissiveTexture && StandardMaterial.EmissiveTextureEnabled) {

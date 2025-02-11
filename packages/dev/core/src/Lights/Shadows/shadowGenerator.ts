@@ -72,6 +72,13 @@ export interface ICustomShaderOptions {
 export interface IShadowGenerator {
     /** Gets or set the id of the shadow generator. It will be the one from the light if not defined */
     id: string;
+
+    /**
+     * Specifies if the `ShadowGenerator` should be serialized, `true` to skip serialization.
+     * Note a `ShadowGenerator` will not be serialized if its light has `doNotSerialize=true`
+     */
+    doNotSerialize?: boolean;
+
     /**
      * Gets the main RTT containing the shadow map (usually storing depth from the light point of view).
      * @returns The render target texture if present otherwise, null
@@ -266,6 +273,12 @@ export class ShadowGenerator implements IShadowGenerator {
      * Can be used to update internal effect state (that you can get from the onAfterShadowMapRenderObservable)
      */
     public onAfterShadowMapRenderMeshObservable = new Observable<Mesh>();
+
+    /**
+     * Specifies if the `ShadowGenerator` should be serialized, `true` to skip serialization.
+     * Note a `ShadowGenerator` will not be serialized if its light has `doNotSerialize=true`
+     */
+    public doNotSerialize = false;
 
     protected _bias = 0.00005;
     /**
@@ -991,11 +1004,40 @@ export class ShadowGenerator implements IShadowGenerator {
             depthOnlySubMeshes: SmartArray<SubMesh>
         ) => this._renderForShadowMap(opaqueSubMeshes, alphaTestSubMeshes, transparentSubMeshes, depthOnlySubMeshes);
 
-        // Force the mesh is ready function to true as we are double checking it
+        // When preWarm is false, forces the mesh is ready function to true as we are double checking it
         // in the custom render function. Also it prevents side effects and useless
         // shader variations in DEPTHPREPASS mode.
-        this._shadowMap.customIsReadyFunction = () => {
-            return true;
+        this._shadowMap.customIsReadyFunction = (mesh: AbstractMesh, _refreshRate: number, preWarm?: boolean | undefined): boolean => {
+            if (!preWarm || !mesh.subMeshes) {
+                return true;
+            }
+
+            let isReady = true;
+            for (const subMesh of mesh.subMeshes) {
+                const renderingMesh = subMesh.getRenderingMesh();
+                const scene = this._scene;
+                const engine = scene.getEngine();
+                const material = subMesh.getMaterial();
+
+                if (!material || subMesh.verticesCount === 0 || (this.customAllowRendering && !this.customAllowRendering(subMesh))) {
+                    continue;
+                }
+
+                const batch = renderingMesh._getInstancesRenderList(subMesh._id, !!subMesh.getReplacementMesh());
+                if (batch.mustReturn) {
+                    continue;
+                }
+
+                const hardwareInstancedRendering =
+                    engine.getCaps().instancedArrays &&
+                    ((batch.visibleInstances[subMesh._id] !== null && batch.visibleInstances[subMesh._id] !== undefined) || renderingMesh.hasThinInstances);
+
+                const isTransparent = material.needAlphaBlendingForMesh(renderingMesh);
+
+                isReady = this.isReady(subMesh, hardwareInstancedRendering, isTransparent) && isReady;
+            }
+
+            return isReady;
         };
 
         const engine = this._scene.getEngine();
@@ -1566,9 +1608,9 @@ export class ShadowGenerator implements IShadowGenerator {
             }
 
             // Alpha test
-            const needAlphaTesting = material.needAlphaTesting();
+            const needAlphaTesting = material.needAlphaTestingForMesh(mesh);
 
-            if (needAlphaTesting || material.needAlphaBlending()) {
+            if (needAlphaTesting || material.needAlphaBlendingForMesh(mesh)) {
                 if (this.useOpacityTextureForTransparentShadow) {
                     this._opacityTexture = (material as any).opacityTexture;
                 } else {
