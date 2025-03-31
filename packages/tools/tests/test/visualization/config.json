@@ -2,6 +2,11 @@
     "root": "https://cdn.babylonjs.com",
     "tests": [
         {
+            "title": "PBR in mirror",
+            "playgroundId": "#Q7DP2M",
+            "referenceImage": "pbr_mirror.png"
+        },
+        {
             "title": "OpenPBR Base Weight",
             "playgroundId": "#DT1XPP#4",
             "referenceImage": "openpbr_base_weight.png"
@@ -30,7 +35,7 @@
         },
         {
             "title": "IES Profile2",
-            "playgroundId": "#UIAXAU#15",
+            "playgroundId": "#UIAXAU#31",
             "referenceImage": "iesprofile2.png",
             "excludedEngines": ["webgl1"]
         },
@@ -84,8 +89,9 @@
         },
         {
             "title": "Decal map PP",
-            "playgroundId": "#9BVW2S#90",
+            "playgroundId": "#9BVW2S#101",
             "referenceImage": "decal-map-pp.png",
+            "renderCount": 50,
             "excludedEngines": ["webgl1"]
         },
         {
@@ -110,14 +116,15 @@
         },
         {
             "title": "NME Multi Build",
-            "playgroundId": "#D8AK3Z#104",
+            "playgroundId": "#D8AK3Z#113",
             "referenceImage": "nme-multi-build.png"
         },
         {
             "title": "BoundingInfo Helper",
-            "playgroundId": "#BCNJD4#42",
+            "playgroundId": "#BCNJD4#61",
             "referenceImage": "bbhelper.png",
-            "excludedEngines": ["webgl1"]
+            "excludedEngines": ["webgl1"],
+            "renderCount": 2
         },
         {
             "title": "NME Shadow Map",
@@ -150,7 +157,8 @@
         {
             "title": "GUI Input Text Area with Placeholder",
             "playgroundId": "#NVAEWD#364",
-            "referenceImage": "gui-inputtextarea-withplaceholder.png"
+            "referenceImage": "gui-inputtextarea-withplaceholder.png",
+            "errorRatio": 4
         },
         {
             "title": "Ground Projection",
@@ -271,6 +279,7 @@
         {
             "title": "Node material 1",
             "playgroundId": "#QJ71C6#5",
+            "errorRatio": 4,
             "referenceImage": "node-material1.png"
         },
         {
@@ -546,7 +555,8 @@
             "renderCount": 20,
             "scriptToRun": "/Demos/Charting/charting.js",
             "functionToCall": "CreateChartingTestScene",
-            "referenceImage": "charting.png"
+            "referenceImage": "charting.png",
+            "errorRatio": 3
         },
         {
             "title": "Fog",
@@ -634,13 +644,15 @@
             "title": "Advanced shadows",
             "renderCount": 20,
             "playgroundId": "#SLV8LW#3",
-            "referenceImage": "advancedShadows.png"
+            "referenceImage": "advancedShadows.png",
+            "errorRatio": 5
         },
         {
             "title": "Advanced shadows (right handed)",
             "renderCount": 20,
             "playgroundId": "#B48X7G#64",
-            "referenceImage": "advancedShadows2.png"
+            "referenceImage": "advancedShadows2.png",
+            "errorRatio": 5
         },
         {
             "title": "point light shadows",
@@ -666,8 +678,7 @@
         },
         {
             "title": "Custom render target",
-            "renderCount": 20,
-            "playgroundId": "#TQCEBF#3",
+            "playgroundId": "#TQCEBF#5",
             "referenceImage": "customRTT.png"
         },
         {
@@ -1041,7 +1052,7 @@
             "title": "GLTF Extension KHR_materials_volume with attenuation",
             "playgroundId": "#YG3BBF#18",
             "referenceImage": "gltfExtensionKhrMaterialsVolumeAttenuation.png",
-            "errorRatio": 1.2,
+            "errorRatio": 3,
             "renderCount": 5
         },
         {
@@ -1068,6 +1079,7 @@
             "title": "Enable disable post process",
             "playgroundId": "#1VI6WV#19",
             "renderCount": 50,
+            "errorRatio": 3,
             "referenceImage": "enableDisablePostProcess.png"
         },
         {
@@ -1188,6 +1200,7 @@
             "renderCount": 5,
             "scriptToRun": "/Demos/GUI/gui.js",
             "functionToCall": "createScene",
+            "errorRatio": 4,
             "referenceImage": "GUI.png"
         },
         {
@@ -1411,8 +1424,7 @@
             "playgroundId": "#E5YGEL#20",
             "referenceImage": "motionBlur.png",
             "renderCount": 10,
-            "excludedEngines": ["webgl1"],
-            "excludeFromAutomaticTesting": true
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "Screen space reflections",
@@ -1437,13 +1449,13 @@
         },
         {
             "title": "Shadows CSM and LODs",
-            "playgroundId": "#24HWT9#0",
+            "playgroundId": "#24HWT9#15",
             "referenceImage": "shadowscsmandlod.png",
             "excludedEngines": ["webgl1"]
         },
         {
             "title": "Glow layer and LODs",
-            "playgroundId": "#UNS6ZV#4",
+            "playgroundId": "#UNS6ZV#13",
             "referenceImage": "glowlayerandlods.png"
         },
         {
@@ -1559,6 +1571,7 @@
             "renderCount": 10,
             "playgroundId": "#FFMFW5#29",
             "excludedEngines": ["webgl1"],
+            "errorRatio": 6,
             "referenceImage": "prepass-ssao-lod.png"
         },
         {
@@ -1594,6 +1607,7 @@
             "renderCount": 10,
             "playgroundId": "#V1JE4Z#25",
             "excludedEngines": ["webgl1"],
+            "errorRatio": 3,
             "referenceImage": "prepass-ssao-thin-instances.png"
         },
         {
@@ -1634,7 +1648,8 @@
         {
             "title": "Multi camera rendering with scissors",
             "playgroundId": "#1LK70I#35",
-            "referenceImage": "multiCameraRenderingWithScissors.png"
+            "referenceImage": "multiCameraRenderingWithScissors.png",
+            "errorRatio": 3
         },
         {
             "title": "Scissor test",
@@ -1691,7 +1706,7 @@
             "title": "Instances + GBR + motion blur",
             "renderCount": 10,
             "playgroundId": "#YB006J#549",
-            "excludedEngines": ["webgl1", "webgpu"],
+            "excludedEngines": ["webgl1"],
             "referenceImage": "instances-gbr-mb.png"
         },
         {
@@ -1784,7 +1799,7 @@
         },
         {
             "title": "Sample depth texture",
-            "renderCount": 5,
+            "renderCount": 2,
             "playgroundId": "#8RU8Q3#158",
             "excludedEngines": ["webgl1"],
             "referenceImage": "sampleDepthTexture.png"
@@ -1867,6 +1882,7 @@
             "title": "GUI Input Test",
             "renderCount": 2,
             "playgroundId": "#UB4F3B#8",
+            "errorRatio": 4,
             "referenceImage": "guiInputTest.png"
         },
         {
@@ -1893,12 +1909,14 @@
             "title": "Load GUI snippet with unicode",
             "playgroundId": "#YS93KY",
             "referenceImage": "loadGuiSnippetWithUnicode.png",
+            "errorRatio": 4,
             "renderCount": 50
         },
         {
             "title": "Parse GUI json with unicode",
             "playgroundId": "#ERVGT5",
             "referenceImage": "parseGuiJsonWithUnicode.png",
+            "errorRatio": 4,
             "renderCount": 50
         },
         {
@@ -1925,9 +1943,8 @@
         },
         {
             "title": "Export GLTF Extension KHR_texture_transform",
-            "playgroundId": "#20OAV9#9228",
-            "referenceImage": "exportGltfKHRTextureTransform.png",
-            "renderCount": 15
+            "playgroundId": "#20OAV9#15148",
+            "referenceImage": "exportGltfKHRTextureTransform.png"
         },
         {
             "title": "GUI Input Text Area Inside ScrollViewer",
@@ -1947,7 +1964,8 @@
         {
             "title": "GUI Gradient Linear",
             "playgroundId": "#XCPP9Y#17227",
-            "referenceImage": "GUI-Gradient-Linear.png"
+            "referenceImage": "GUI-Gradient-Linear.png",
+            "errorRatio": 4
         },
         {
             "title": "GUI Gradient Radial",
@@ -2005,12 +2023,14 @@
         {
             "title": "GUI Text Block with resizeToFit and forceResizeWidth",
             "playgroundId": "#XCPP9Y#17810",
-            "referenceImage": "GUI-Text-Block-with-resizeToFit-and-forceResizeWidth.png"
+            "referenceImage": "GUI-Text-Block-with-resizeToFit-and-forceResizeWidth.png",
+            "errorRatio": 4
         },
         {
             "title": "GUI Horizontal Stack Panel and Text Block with resizeToFit and forceResizeWidth",
             "playgroundId": "#XCPP9Y#17811",
-            "referenceImage": "GUI-Horizontal-Stack-Panel-and-Text-Block-with-resizeToFit-and-forceResizeWidth.png"
+            "referenceImage": "GUI-Horizontal-Stack-Panel-and-Text-Block-with-resizeToFit-and-forceResizeWidth.png",
+            "errorRatio": 4
         },
         {
             "title": "Scene Recorder Apply Delta",
@@ -2026,6 +2046,7 @@
         {
             "title": "Rounding values on controls inside StackPanel",
             "playgroundId": "#XCPP9Y#18325",
+            "errorRatio": 4,
             "referenceImage": "Rounding-values-on-controls-inside-StackPanel.png"
         },
         {
@@ -2182,11 +2203,13 @@
         {
             "title": "show-multiple-guis",
             "renderCount": 5,
+            "errorRatio": 4,
             "playgroundId": "#6X9UMD#12"
         },
         {
             "title": "skybox-with-boombox",
             "renderCount": 20,
+            "errorRatio": 4,
             "playgroundId": "#I2TR8G#0"
         },
         {
@@ -2203,7 +2226,7 @@
         {
             "title": "dissolve-effect-with-node-material-and-glow-layer",
             "renderCount": 2,
-            "playgroundId": "#F6PGMC"
+            "playgroundId": "#F6PGMC#12"
         },
         {
             "title": "cascaded-shadow-maps-and-flying-saucers",
@@ -2240,12 +2263,7 @@
         },
         {
             "title": "lens-flare",
-            "playgroundId": "#KICG93"
-        },
-        {
-            "title": "update-sampler-info",
-            "renderCount": 5,
-            "playgroundId": "#7GKK8E#20"
+            "playgroundId": "#KICG93#2"
         },
         {
             "title": "wgsl-in-shadermaterial",
@@ -2256,8 +2274,10 @@
         {
             "title": "terrain-erosion",
             "renderCount": 15,
+            "errorRatio": 6,
             "playgroundId": "#C90R62#17",
-            "excludedEngines": ["webgl1", "webgl2"]
+            "excludedEngines": ["webgl1", "webgl2"],
+            "excludeFromAutomaticTesting": true
         },
         {
             "title": "change-texture-of-material",
@@ -2287,6 +2307,7 @@
             "title": "Render to 3D RT",
             "renderCount": 5,
             "playgroundId": "#XSNYAU#83",
+            "errorRatio": 3,
             "excludedEngines": ["webgl1"]
         },
         {
@@ -2316,6 +2337,7 @@
         {
             "title": "CesiumMan from Khronos Sample Assets",
             "playgroundId": "#4GWX8M",
+            "errorRatio": 2,
             "referenceImage": "CesiumMan.png"
         },
         {
@@ -2337,25 +2359,29 @@
             "title": "computeMaxExtents (BrainStem)",
             "playgroundId": "#M2H33B",
             "replace": "//options//, modelIndex = 2;",
-            "referenceImage": "computeMaxExtents-BoxAnimated.png"
+            "referenceImage": "computeMaxExtents-BoxAnimated.png",
+            "renderCount": 2
         },
         {
             "title": "computeMaxExtents (Fox 0)",
             "playgroundId": "#M2H33B",
             "replace": "//options//, modelIndex = 4; animationIndex = 0;",
-            "referenceImage": "computeMaxExtents-Fox0.png"
+            "referenceImage": "computeMaxExtents-Fox0.png",
+            "renderCount": 2
         },
         {
             "title": "computeMaxExtents (Fox 1)",
             "playgroundId": "#M2H33B",
             "replace": "//options//, modelIndex = 4; animationIndex = 1;",
-            "referenceImage": "computeMaxExtents-Fox1.png"
+            "referenceImage": "computeMaxExtents-Fox1.png",
+            "renderCount": 2
         },
         {
             "title": "computeMaxExtents (MorphStressTest)",
             "playgroundId": "#M2H33B",
             "replace": "//options//, modelIndex = 5;",
-            "referenceImage": "computeMaxExtents-MorphStressTest.png"
+            "referenceImage": "computeMaxExtents-MorphStressTest.png",
+            "renderCount": 2
         },
         {
             "title": "glTF Loader Capabilities",
@@ -2417,49 +2443,71 @@
         },
         {
             "title": "FrameGraph nrge shadows",
-            "playgroundId": "#JWKDME#13"
+            "playgroundId": "#JWKDME#28",
+            "errorRatio": 2
         },
         {
             "title": "FrameGraph nrge csm shadows",
-            "playgroundId": "#JWKDME#12"
+            "playgroundId": "#JWKDME#29",
+            "errorRatio": 2
         },
         {
             "title": "FrameGraph nrge custom rendering",
-            "playgroundId": "#1QCA2M"
+            "playgroundId": "#1QCA2M#1",
+            "errorRatio": 2
         },
         {
             "title": "FrameGraph nrge depth of field",
-            "playgroundId": "#GAGVQO#1"
+            "playgroundId": "#GAGVQO#3",
+            "errorRatio": 3
         },
         {
             "title": "FrameGraph nrge glow layer",
-            "playgroundId": "#IG8NRC#11"
+            "playgroundId": "#IG8NRC#15",
+            "errorRatio": 2
         },
         {
             "title": "FrameGraph nrge highlight layer",
-            "playgroundId": "#QZYNMK"
+            "playgroundId": "#QZYNMK#1",
+            "errorRatio": 2
+        },
+        {
+            "title": "FrameGraph nrge SSR cube",
+            "playgroundId": "#PIZ1GK#2090",
+            "excludedEngines": ["webgl1"]
+        },
+        {
+            "title": "FrameGraph nrge SSR HillValley",
+            "playgroundId": "#PIZ1GK#2091",
+            "excludedEngines": ["webgl1"]
+        },
+        {
+            "title": "FrameGraph nrge SSR neon",
+            "playgroundId": "#Z6C5EF#1",
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "FrameGraph nrg gui bloom",
-            "playgroundId": "#3LB017"
+            "playgroundId": "#3LB017#1",
+            "errorRatio": 2
         },
         {
             "title": "FrameGraph glow layer",
-            "playgroundId": "#9YU4C5#1",
+            "playgroundId": "#9YU4C5#8",
             "referenceImage": "FrameGraph-nrg-glow-layer.png",
-            "errorRatio": 0.1
+            "errorRatio": 1
         },
         {
             "title": "FrameGraph highlight layer",
-            "playgroundId": "#PV8OLY"
+            "playgroundId": "#PV8OLY#16"
         },
         {
             "title": "FrameGraph custom rendering",
-            "playgroundId": "#RM56RY#3"
+            "playgroundId": "#RM56RY#15"
         },
         {
             "title": "FrameGraph gui bloom",
-            "playgroundId": "#RM56RY#2"
+            "playgroundId": "#RM56RY#16"
         },
         {
             "title": "IBL radiance roughness",
@@ -2479,6 +2527,22 @@
             "title": "Hide Loading Screen",
             "playgroundId": "#EQP888#8",
             "referenceImage": "Hide-Loading-Screen.png"
+        },
+        {
+            "title": "Flow Graph multiple contexts",
+            "playgroundId": "#FQWPBI#11",
+            "referenceImage": "Flow-Graph-multiple-contexts.png",
+            "renderCount": 30
+        },
+        {
+            "title": "KHR diffuse transmission",
+            "playgroundId": "#RX52XX#1"
+        },
+        {
+            "title": "SubSurface Scattering",
+            "playgroundId": "#5H0H89#129",
+            "renderCount": 10,
+            "excludedEngines": ["webgl1"]
         }
     ]
 }

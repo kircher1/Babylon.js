@@ -151,8 +151,8 @@ export interface IShadowGenerator {
  * Default implementation IShadowGenerator.
  * This is the main object responsible of generating shadows in the framework.
  * Documentation: https://doc.babylonjs.com/features/featuresDeepDive/lights/shadows
- * #IFYDRS#0: WebGL
- * #IFYDRS#835: WebGPU
+ * @see [WebGL](https://playground.babylonjs.com/#IFYDRS#0)
+ * @see [WebGPU](https://playground.babylonjs.com/#IFYDRS#835)
  */
 export class ShadowGenerator implements IShadowGenerator {
     /**
@@ -1596,6 +1596,7 @@ export class ShadowGenerator implements IShadowGenerator {
             let useNormal = false;
             let uv1 = false;
             let uv2 = false;
+            const color = false;
 
             // Normal bias.
             if (this.normalBias && mesh.isVerticesDataPresent(VertexBuffer.NormalKind)) {
@@ -1677,7 +1678,8 @@ export class ShadowGenerator implements IShadowGenerator {
                       useNormal, // useNormalMorph
                       false, // useTangentMorph
                       uv1, // useUVMorph
-                      uv2 // useUV2Morph
+                      uv2, // useUV2Morph
+                      color // useColorMorph
                   )
                 : 0;
 

@@ -27,8 +27,10 @@ import type { NodeRenderGraphHighlightLayerBlock } from "core/FrameGraph/Node/Bl
 import { BoundingBox } from "core/Culling/boundingBox";
 import type { NodeRenderGraphExecuteBlock } from "core/FrameGraph/Node/Blocks/executeBlock";
 import type { Mesh } from "core/Meshes";
+import type { NodeRenderGraphUtilityLayerRendererBlock } from "core/FrameGraph/Node/Blocks/Rendering/utilityLayerRendererBlock";
+import { GizmoManager } from "core/Gizmos/gizmoManager";
+import { Texture } from "core/Materials/Textures/texture";
 
-const useWebGPU = false;
 const debugTextures = false;
 const logErrorTrace = true;
 
@@ -48,6 +50,7 @@ export class PreviewManager {
     private _currentType: number;
     private _lightParent: TransformNode;
     private _hdrTexture: CubeTexture;
+    private _dummyExternalTexture: Texture;
 
     public constructor(targetCanvas: HTMLCanvasElement, globalState: GlobalState) {
         this._globalState = globalState;
@@ -85,7 +88,7 @@ export class PreviewManager {
     }
 
     private async _initAsync(targetCanvas: HTMLCanvasElement) {
-        if (useWebGPU) {
+        if (this._globalState.engine === 1) {
             this._engine = new WebGPUEngine(targetCanvas, {
                 enableGPUDebugMarkers: true,
                 enableAllFeatures: true,
@@ -114,52 +117,62 @@ export class PreviewManager {
             canvas.addEventListener("drop", onDrop, false);
         }
 
-        this._initScene(new Scene(this._engine));
+        await this._initSceneAsync(new Scene(this._engine));
 
         this._refreshPreviewMesh();
     }
 
-    private _initScene(scene: Scene) {
+    private _initSceneAsync(scene: Scene): Promise<void> {
         (window as any).scenePreview = scene;
 
         this._scene = scene;
 
-        this._prepareBackgroundHDR();
+        this._dummyExternalTexture?.dispose();
+        this._dummyExternalTexture = new Texture("https://assets.babylonjs.com/textures/Checker_albedo.png", this._scene, true);
+        this._dummyExternalTexture.name = "Dummy external texture for preview NRGE";
 
-        this._globalState.filesInput?.dispose();
-        this._globalState.filesInput = new FilesInput(
-            this._engine,
-            null,
-            (_, scene) => {
-                this._scene.dispose();
-                this._initScene(scene);
-            },
-            null,
-            null,
-            null,
-            null,
-            null,
-            () => {
-                this._reset();
-            },
-            false,
-            true
-        );
+        return new Promise((resolve) => {
+            this._dummyExternalTexture.onLoadObservable.add(() => {
+                this._prepareBackgroundHDR();
 
-        this._lightParent = new TransformNode("LightParent", this._scene);
+                this._globalState.filesInput?.dispose();
+                this._globalState.filesInput = new FilesInput(
+                    this._engine,
+                    null,
+                    async (_, scene) => {
+                        this._scene.dispose();
+                        await this._initSceneAsync(scene);
+                    },
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    () => {
+                        this._reset();
+                    },
+                    false,
+                    true
+                );
 
-        this._engine.stopRenderLoop();
+                this._lightParent = new TransformNode("LightParent", this._scene);
 
-        this._engine.runRenderLoop(() => {
-            this._engine.resize();
-            if (this._scene.frameGraph) {
-                this._scene.render();
-            }
+                this._engine.stopRenderLoop();
+
+                this._engine.runRenderLoop(() => {
+                    this._engine.resize();
+                    if (this._scene.frameGraph) {
+                        this._scene.render();
+                    }
+                });
+
+                this._prepareScene();
+
+                this._createNodeRenderGraph();
+
+                resolve();
+            });
         });
-
-        this._prepareScene();
-
-        this._createNodeRenderGraph();
     }
 
     private _reset() {
@@ -298,7 +311,7 @@ export class PreviewManager {
                 continue;
             }
             if ((input.type & NodeRenderGraphBlockConnectionPointTypes.TextureAllButBackBuffer) !== 0) {
-                // TODO: Implement this?
+                input.value = this._dummyExternalTexture.getInternalTexture();
             } else if (input.isCamera()) {
                 const camera = new ArcRotateCamera("PreviewCamera", 0, 0.8, 4, Vector3.Zero(), this._scene);
 
@@ -343,6 +356,14 @@ export class PreviewManager {
                     if (mesh) {
                         layer.addMesh(mesh, new Color3(0, 1, 0), false);
                     }
+                    break;
+                }
+                case "NodeRenderGraphUtilityLayerRendererBlock": {
+                    const layer = (block as NodeRenderGraphUtilityLayerRendererBlock).task.layer;
+                    const gizmoManager = new GizmoManager(this._scene, undefined, layer, layer);
+                    gizmoManager.positionGizmoEnabled = true;
+                    gizmoManager.rotationGizmoEnabled = true;
+                    gizmoManager.attachableMeshes = this._scene.meshes.filter((m) => m.getTotalVertices() > 0);
                     break;
                 }
             }
@@ -492,28 +513,28 @@ export class PreviewManager {
         switch (this._globalState.previewType) {
             case PreviewType.Box:
                 SceneLoader.LoadAsync("https://assets.babylonjs.com/meshes/", "roundedCube.glb").then((scene) => {
-                    this._initScene(scene);
+                    this._initSceneAsync(scene);
                 });
                 return;
             case PreviewType.Sphere:
                 SceneLoader.LoadAsync("https://assets.babylonjs.com/meshes/", "previewSphere.glb").then((scene) => {
-                    this._initScene(scene);
+                    this._initSceneAsync(scene);
                 });
                 break;
             case PreviewType.Cylinder:
                 SceneLoader.LoadAsync("https://assets.babylonjs.com/meshes/", "roundedCylinder.glb").then((scene) => {
-                    this._initScene(scene);
+                    this._initSceneAsync(scene);
                 });
                 return;
             case PreviewType.Plane: {
                 SceneLoader.LoadAsync("https://assets.babylonjs.com/meshes/", "highPolyPlane.glb").then((scene) => {
-                    this._initScene(scene);
+                    this._initSceneAsync(scene);
                 });
                 break;
             }
             case PreviewType.ShaderBall:
                 SceneLoader.LoadAsync("https://assets.babylonjs.com/meshes/", "shaderBall.glb").then((scene) => {
-                    this._initScene(scene);
+                    this._initSceneAsync(scene);
                 });
                 return;
             case PreviewType.Custom:
@@ -523,6 +544,8 @@ export class PreviewManager {
     }
 
     public dispose() {
+        this._dummyExternalTexture?.dispose();
+
         this._globalState.onFrame.remove(this._onFrameObserver);
         this._globalState.stateManager.onPreviewCommandActivated.remove(this._onPreviewCommandActivatedObserver);
         this._globalState.stateManager.onUpdateRequiredObservable.remove(this._onUpdateRequiredObserver);

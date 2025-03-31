@@ -159,6 +159,7 @@ export class NodeMaterialDefines extends MaterialDefines implements IImageProces
     public MORPHTARGETS_UV = false;
     /** Morph target uv2 */
     public MORPHTARGETS_UV2 = false;
+    public MORPHTARGETS_COLOR = false;
     /** Morph target support positions */
     public MORPHTARGETTEXTURE_HASPOSITIONS = false;
     /** Morph target support normals */
@@ -169,6 +170,7 @@ export class NodeMaterialDefines extends MaterialDefines implements IImageProces
     public MORPHTARGETTEXTURE_HASUVS = false;
     /** Morph target support uv2s */
     public MORPHTARGETTEXTURE_HASUV2S = false;
+    public MORPHTARGETTEXTURE_HASCOLORS = false;
     /** Number of morph influencers */
     public NUM_MORPH_INFLUENCERS = 0;
     /** Using a texture to store morph target data */
@@ -297,6 +299,9 @@ export class NodeMaterial extends PushMaterial {
 
     /** Defines default shader language when no option is defined */
     public static DefaultShaderLanguage = ShaderLanguage.GLSL;
+
+    /** If true, the node material will use GLSL if the engine is WebGL and WGSL if it's WebGPU. It takes priority over DefaultShaderLanguage if it's true */
+    public static UseNativeShaderLanguageOfEngine = false;
 
     /**
      * Checks if a block is a texture block
@@ -477,7 +482,7 @@ export class NodeMaterial extends PushMaterial {
     constructor(name: string, scene?: Scene, options: Partial<INodeMaterialOptions> = {}) {
         super(name, scene || EngineStore.LastCreatedScene!);
 
-        if (options && options.shaderLanguage === ShaderLanguage.WGSL && !this.getScene().getEngine().isWebGPU) {
+        if (!NodeMaterial.UseNativeShaderLanguageOfEngine && options && options.shaderLanguage === ShaderLanguage.WGSL && !this.getScene().getEngine().isWebGPU) {
             throw new Error("WebGPU shader language is only supported with WebGPU engine");
         }
 
@@ -486,6 +491,10 @@ export class NodeMaterial extends PushMaterial {
             shaderLanguage: NodeMaterial.DefaultShaderLanguage,
             ...options,
         };
+
+        if (NodeMaterial.UseNativeShaderLanguageOfEngine) {
+            this._options.shaderLanguage = this.getScene().getEngine().isWebGPU ? ShaderLanguage.WGSL : ShaderLanguage.GLSL;
+        }
 
         // Setup the default processing configuration to the scene.
         this._attachImageProcessingConfiguration(null);
@@ -1135,6 +1144,22 @@ export class NodeMaterial extends PushMaterial {
             result.push(Constants.PREPASS_POSITION_TEXTURE_TYPE);
         }
 
+        if (prePassOutputBlock.localPosition.isConnected) {
+            result.push(Constants.PREPASS_LOCAL_POSITION_TEXTURE_TYPE);
+        }
+
+        if (prePassOutputBlock.reflectivity.isConnected) {
+            result.push(Constants.PREPASS_REFLECTIVITY_TEXTURE_TYPE);
+        }
+
+        if (prePassOutputBlock.velocity.isConnected) {
+            result.push(Constants.PREPASS_VELOCITY_TEXTURE_TYPE);
+        }
+
+        if (prePassOutputBlock.velocityLinear.isConnected) {
+            result.push(Constants.PREPASS_VELOCITY_LINEAR_TEXTURE_TYPE);
+        }
+
         return result;
     }
 
@@ -1290,6 +1315,9 @@ export class NodeMaterial extends PushMaterial {
         }
 
         postProcess.nodeMaterialSource = this;
+        postProcess.onDisposeObservable.add(() => {
+            dummyMesh.dispose();
+        });
 
         postProcess.onApplyObservable.add((effect) => {
             if (buildId !== this._buildId) {

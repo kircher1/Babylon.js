@@ -36,8 +36,17 @@ let loadScriptAsync = function (url, instantResolve) {
 };
 
 const Versions = {
-    dist: ["https://cdn.babylonjs.com/timestamp.js?t=" + Date.now(), "https://preview.babylonjs.com/babylon.js", "https://preview.babylonjs.com/loaders/babylonjs.loaders.min.js"],
-    local: [`//${window.location.hostname}:1337/babylon.js`, `//${window.location.hostname}:1337/loaders/babylonjs.loaders.min.js`],
+    dist: [
+        "https://cdn.babylonjs.com/timestamp.js?t=" + Date.now(),
+        "https://preview.babylonjs.com/babylon.js",
+        "https://preview.babylonjs.com/loaders/babylonjs.loaders.min.js",
+        "https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js",
+    ],
+    local: [
+        `//${window.location.hostname}:1337/babylon.js`,
+        `//${window.location.hostname}:1337/loaders/babylonjs.loaders.min.js`,
+        `//${window.location.hostname}:1337/materialsLibrary/babylonjs.materials.min.js`,
+    ],
 };
 
 let loadInSequence = async function (versions, index, resolve) {
@@ -82,6 +91,18 @@ let checkBabylonVersionAsync = function () {
 
     return new Promise((resolve) => {
         loadInSequence(frameworkScripts, 0, resolve);
+    }).then(() => {
+        // if local, set the default base URL
+        if (snapshot) {
+            // eslint-disable-next-line no-undef
+            globalThis.BABYLON.Tools.ScriptBaseUrl = "https://snapshots-cvgtc2eugrd3cgfd.z01.azurefd.net/" + snapshot;
+        } else if (version) {
+            // eslint-disable-next-line no-undef
+            globalThis.BABYLON.Tools.ScriptBaseUrl = "https://cdn.babylonjs.com/v" + version;
+        } else if (activeVersion === "local") {
+            // eslint-disable-next-line no-undef
+            globalThis.BABYLON.Tools.ScriptBaseUrl = window.location.protocol + `//${window.location.hostname}:1337/`;
+        }
     });
 };
 

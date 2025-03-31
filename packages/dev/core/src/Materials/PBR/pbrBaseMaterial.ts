@@ -242,11 +242,13 @@ export class PBRMaterialDefines extends MaterialDefines implements IImageProcess
     public MORPHTARGETS_TANGENT = false;
     public MORPHTARGETS_UV = false;
     public MORPHTARGETS_UV2 = false;
+    public MORPHTARGETS_COLOR = false;
     public MORPHTARGETTEXTURE_HASPOSITIONS = false;
     public MORPHTARGETTEXTURE_HASNORMALS = false;
     public MORPHTARGETTEXTURE_HASTANGENTS = false;
     public MORPHTARGETTEXTURE_HASUVS = false;
     public MORPHTARGETTEXTURE_HASUV2S = false;
+    public MORPHTARGETTEXTURE_HASCOLORS = false;
     public NUM_MORPH_INFLUENCERS = 0;
     public MORPHTARGETS_TEXTURE = false;
 
@@ -272,6 +274,7 @@ export class PBRMaterialDefines extends MaterialDefines implements IImageProcess
     public USEPHYSICALLIGHTFALLOFF = false;
     public USEGLTFLIGHTFALLOFF = false;
     public TWOSIDEDLIGHTING = false;
+    public MIRRORED = false;
     public SHADOWFLOAT = false;
     public CLIPPLANE = false;
     public CLIPPLANE2 = false;
@@ -322,8 +325,8 @@ export class PBRMaterialDefines extends MaterialDefines implements IImageProcess
  * This offers the main features of a standard PBR material.
  * For more information, please refer to the documentation :
  * https://doc.babylonjs.com/features/featuresDeepDive/materials/using/introToPBR
- * #CGHTSM#1 : WebGL
- * #CGHTSM#2 : WebGPU
+ * @see [WebGL](https://playground.babylonjs.com/#CGHTSM#1)
+ * @see [WebGPU](https://playground.babylonjs.com/#CGHTSM#2)
  */
 export abstract class PBRBaseMaterial extends PushMaterial {
     /**
@@ -1920,6 +1923,9 @@ export abstract class PBRBaseMaterial extends PushMaterial {
                 defines.TWOSIDEDLIGHTING = false;
             }
 
+            // We need it to not invert normals in two sided lighting mode (based on the winding of the face)
+            defines.MIRRORED = !!scene._mirroredCameraPosition;
+
             defines.SPECULARAA = engine.getCaps().standardDerivatives && this._enableSpecularAntiAliasing;
         }
 
@@ -2122,7 +2128,7 @@ export abstract class PBRBaseMaterial extends PushMaterial {
 
         this.prePassConfiguration.bindForSubMesh(this._activeEffect, scene, mesh, world, this.isFrozen);
 
-        MaterialHelperGeometryRendering.Bind(engine.currentRenderPassId, this._activeEffect, mesh, world);
+        MaterialHelperGeometryRendering.Bind(engine.currentRenderPassId, this._activeEffect, mesh, world, this);
 
         this._eventInfo.subMesh = subMesh;
         this._callbackPluginEventHardBindForSubMesh(this._eventInfo);
@@ -2175,7 +2181,7 @@ export abstract class PBRBaseMaterial extends PushMaterial {
 
                     if (reflectionTexture && MaterialFlags.ReflectionTextureEnabled) {
                         ubo.updateMatrix("reflectionMatrix", reflectionTexture.getReflectionTextureMatrix());
-                        ubo.updateFloat2("vReflectionInfos", reflectionTexture.level, 0);
+                        ubo.updateFloat2("vReflectionInfos", reflectionTexture.level * scene.iblIntensity, 0);
 
                         if ((<any>reflectionTexture).boundingBoxSize) {
                             const cubeTexture = <CubeTexture>reflectionTexture;
