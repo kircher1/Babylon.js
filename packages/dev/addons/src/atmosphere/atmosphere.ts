@@ -16,7 +16,7 @@ import type { Effect } from "core/Materials/effect";
 import { EffectRenderer, EffectWrapper } from "core/Materials/effectRenderer";
 import type { IAtmosphereOptions } from "./atmosphereOptions";
 import type { IColor3Like, IVector3Like } from "core/Maths/math.like";
-import type { IDisposable, Scene } from "core/scene";
+import type { IDisposable, IReadyable, Scene } from "core/scene";
 import { Observable, type Observer } from "core/Misc/observable";
 import { RegisterMaterialPlugin, UnregisterMaterialPlugin } from "core/Materials/materialPluginManager";
 import type { RenderingGroupInfo } from "core/Rendering/renderingManager";
@@ -50,7 +50,7 @@ let UniqueId = 0;
  * Use {@link IsSupported} to check if the atmosphere is supported before creating an instance.
  * @experimental
  */
-export class Atmosphere implements IDisposable {
+export class Atmosphere implements IDisposable, IReadyable {
     private readonly _directionToLight = Vector3.Zero();
     private readonly _tempSceneAmbient = new Color3();
     private readonly _engine: AbstractEngine;
@@ -730,6 +730,37 @@ export class Atmosphere implements IDisposable {
             this.aerialPerspectiveLutRenderTarget!;
         }
 
+        // Eagerly create compositor effect wrappers to avoid runtime delays when transitioning between inside/outside atmosphere.
+        this._skyCompositorEffectWrapper = CreateSkyCompositorEffectWrapper(
+            engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance
+        );
+        this._globeAtmosphereCompositorEffectWrapper = CreateGlobeAtmosphereCompositorEffectWrapper(
+            engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance,
+            this._aerialPerspectiveIntensity,
+            this._aerialPerspectiveRadianceBias,
+            this.depthTexture !== null
+        );
+        if (this.depthTexture !== null) {
+            this._aerialPerspectiveCompositorEffectWrapper = CreateAerialPerspectiveCompositorEffectWrapper(
+                engine,
+                this.uniformBuffer,
+                this._isAerialPerspectiveLutEnabled,
+                this._isSkyViewLutEnabled,
+                this._isLinearSpaceComposition,
+                this._applyApproximateTransmittance,
+                this._aerialPerspectiveIntensity,
+                this._aerialPerspectiveRadianceBias
+            );
+        }
+
         // Before rendering, make sure the per-camera variables have been updated.
         this._onBeforeCameraRenderObserver = scene.onBeforeCameraRenderObservable.add((x) => {
             this._updatePerCameraVariables(x);
@@ -803,12 +834,15 @@ export class Atmosphere implements IDisposable {
             }
             return null;
         });
+
+        scene.registerReadyable(this);
     }
 
     /**
      * @override
      */
     public dispose(): void {
+        this.scene.unregisterReadyable(this);
         this._onBeforeCameraRenderObserver?.remove();
         this._onBeforeCameraRenderObserver = null;
         this._onBeforeDrawPhaseObserver?.remove();
@@ -864,6 +898,41 @@ export class Atmosphere implements IDisposable {
      */
     public setEnabled(enabled: boolean) {
         this._isEnabled = enabled;
+    }
+
+    /**
+     * Returns true if the atmosphere is ready for rendering.
+     * @returns true if the atmosphere is ready
+     */
+    public isReady(): boolean {
+        if (!this._isEnabled) {
+            return true;
+        }
+
+        // Check LUTs have data.
+        if (!this._transmittanceLut?.hasLutData || (this._diffuseSkyIrradianceLut && !this._diffuseSkyIrradianceLut.hasLutData)) {
+            return false;
+        }
+        if (!this._hasRenderedMultiScatteringLut || this._multiScatteringLutRenderTarget?.isReady() === false || this._multiScatteringEffectWrapper?.isReady() === false) {
+            return false;
+        }
+        if (this._isSkyViewLutEnabled && (this._skyViewLutRenderTarget?.isReady() === false || this._skyViewLutEffectWrapper?.isReady() === false)) {
+            return false;
+        }
+        if (this._isAerialPerspectiveLutEnabled && (this._aerialPerspectiveLutRenderTarget?.isReady() === false || this._aerialPerspectiveLutEffectWrapper?.isReady() === false)) {
+            return false;
+        }
+
+        // Check compositor effect wrappers.
+        if (
+            this._skyCompositorEffectWrapper?.isReady() === false ||
+            this._aerialPerspectiveCompositorEffectWrapper?.isReady() === false ||
+            this._globeAtmosphereCompositorEffectWrapper?.isReady() === false
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -945,16 +1014,10 @@ export class Atmosphere implements IDisposable {
         }
 
         const engine = this._engine;
-        const effectWrapper = (this._aerialPerspectiveCompositorEffectWrapper ??= CreateAerialPerspectiveCompositorEffectWrapper(
-            engine,
-            this.uniformBuffer,
-            this._isAerialPerspectiveLutEnabled,
-            this._isSkyViewLutEnabled,
-            this._isLinearSpaceComposition,
-            this._applyApproximateTransmittance,
-            this._aerialPerspectiveIntensity,
-            this._aerialPerspectiveRadianceBias
-        ));
+        const effectWrapper = this._aerialPerspectiveCompositorEffectWrapper;
+        if (!effectWrapper) {
+            return;
+        }
 
         const skyViewLut = this._isSkyViewLutEnabled ? this.skyViewLutRenderTarget : null;
         const multiScatteringLut = this._multiScatteringLutRenderTarget!;
@@ -1022,13 +1085,10 @@ export class Atmosphere implements IDisposable {
         }
 
         const engine = this._engine;
-        const effectWrapper = (this._skyCompositorEffectWrapper ??= CreateSkyCompositorEffectWrapper(
-            engine,
-            this.uniformBuffer,
-            this._isSkyViewLutEnabled,
-            this._isLinearSpaceComposition,
-            this._applyApproximateTransmittance
-        ));
+        const effectWrapper = this._skyCompositorEffectWrapper;
+        if (!effectWrapper) {
+            return;
+        }
 
         const skyViewLut = this._isSkyViewLutEnabled ? this.skyViewLutRenderTarget : null;
         const multiScatteringLut = this._multiScatteringLutRenderTarget!;
@@ -1077,16 +1137,10 @@ export class Atmosphere implements IDisposable {
         }
 
         const engine = this._engine;
-        const effectWrapper = (this._globeAtmosphereCompositorEffectWrapper ??= CreateGlobeAtmosphereCompositorEffectWrapper(
-            engine,
-            this.uniformBuffer,
-            this._isSkyViewLutEnabled,
-            this._isLinearSpaceComposition,
-            this._applyApproximateTransmittance,
-            this._aerialPerspectiveIntensity,
-            this._aerialPerspectiveRadianceBias,
-            this.depthTexture !== null
-        ));
+        const effectWrapper = this._globeAtmosphereCompositorEffectWrapper;
+        if (!effectWrapper) {
+            return;
+        }
 
         const skyViewLut = this._isSkyViewLutEnabled ? this.skyViewLutRenderTarget : null;
         const multiScatteringLut = this._multiScatteringLutRenderTarget!;
