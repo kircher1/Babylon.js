@@ -20,7 +20,7 @@ import type { IShapeBlock } from "core/Particles/Node/Blocks/Emitters/IShapeBloc
 
 import { Color4 } from "core/Maths/math.color";
 import { Vector2, Vector3 } from "core/Maths/math.vector";
-import { AbstractMesh } from "../../Meshes/abstractMesh";
+import { TransformNode } from "../../Meshes/transformNode";
 import { FactorGradient } from "core/Misc/gradients";
 import { NodeParticleBlockConnectionPointTypes } from "core/Particles/Node/Enums/nodeParticleBlockConnectionPointTypes";
 import { NodeParticleSystemSet } from "./nodeParticleSystemSet";
@@ -1034,6 +1034,8 @@ function _SystemBlockGroup(updateParticleOutput: NodeParticleConnectionPoint, ol
     newSystem.isLocal = oldSystem.isLocal;
     newSystem.disposeOnStop = oldSystem.disposeOnStop;
 
+    _SystemCustomShader(oldSystem, newSystem);
+
     if (oldSystem.emitter) {
         _SystemEmitterPosition(oldSystem.emitter, newSystem);
     }
@@ -1056,11 +1058,49 @@ function _SystemBlockGroup(updateParticleOutput: NodeParticleConnectionPoint, ol
     return newSystem;
 }
 
-function _SystemEmitterPosition(emitter: AbstractMesh | Vector3, newSystem: SystemBlock): void {
+function _SystemCustomShader(oldSystem: ParticleSystem, newSystem: SystemBlock) {
+    if (oldSystem.customShader) {
+        // Copy the custom shader configuration so it can be recreated when building the system
+        newSystem.customShader = {
+            shaderPath: {
+                fragmentElement: oldSystem.customShader.shaderPath.fragmentElement,
+            },
+            shaderOptions: {
+                uniforms: oldSystem.customShader.shaderOptions.uniforms.slice(),
+                samplers: oldSystem.customShader.shaderOptions.samplers.slice(),
+                defines: oldSystem.customShader.shaderOptions.defines.slice(),
+            },
+        };
+    } else {
+        // Check if there's a custom effect set directly without customShader metadata
+        // This happens when using the ThinParticleSystem constructor with a customEffect parameter or when calling setCustomEffect directly
+        const customEffect = oldSystem.getCustomEffect(0);
+        if (customEffect) {
+            const effectName = customEffect.name;
+            const fragmentElement =
+                typeof effectName === "string"
+                    ? effectName
+                    : ((effectName as { fragmentElement?: string; fragment?: string }).fragmentElement ?? (effectName as { fragment?: string }).fragment);
+
+            newSystem.customShader = {
+                shaderPath: {
+                    fragmentElement: fragmentElement ?? "",
+                },
+                shaderOptions: {
+                    uniforms: (customEffect as any)._uniformsNames.slice(),
+                    samplers: (customEffect as any)._samplerList.slice(),
+                    defines: customEffect.defines ? customEffect.defines.split("\n").filter((d) => d.length > 0) : [],
+                },
+            };
+        }
+    }
+}
+
+function _SystemEmitterPosition(emitter: TransformNode | Vector3, newSystem: SystemBlock): void {
     if (emitter) {
         _CreateAndConnectInput(
             "Emitter Position",
-            emitter instanceof AbstractMesh ? emitter.position.clone() : emitter.clone(),
+            emitter instanceof TransformNode ? emitter.position.clone() : emitter.clone(),
             newSystem.emitterPosition,
             NodeParticleBlockConnectionPointTypes.Vector3
         );
