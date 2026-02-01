@@ -714,8 +714,7 @@ export class Atmosphere implements IDisposable, IReadyable {
         this._minimumMultiScattering.y = minimumMultiScatteringColor.g * this._minimumMultiScatteringIntensity;
         this._minimumMultiScattering.z = minimumMultiScatteringColor.b * this._minimumMultiScatteringIntensity;
 
-        // Initialize light-related values so global LUTs can render before any camera update.
-        // These will be updated per-camera during the render loop.
+        // Initialize light direction and color.
         {
             const light = lights[0];
             this._directionToLight.copyFrom(light.direction).scaleInPlace(-1);
@@ -747,8 +746,7 @@ export class Atmosphere implements IDisposable, IReadyable {
             this.aerialPerspectiveLutRenderTarget!;
         }
 
-        // Render global LUTs once per frame (not per camera). This handles runtime property changes
-        // that mark LUTs dirty after the scene has started rendering.
+        // Render global LUTs once per frame (not per camera).
         this._onBeforeRenderObserver = scene.onBeforeRenderObservable.add(() => {
             this.renderGlobalLuts();
         });
