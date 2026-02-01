@@ -1045,7 +1045,6 @@ export class Atmosphere implements IDisposable, IReadyable {
             this._aerialPerspectiveRadianceBias
         ));
 
-        // Guard: Don't render until global LUTs have been populated.
         if (!this._isGlobalLutsReady) {
             return;
         }
@@ -1119,7 +1118,7 @@ export class Atmosphere implements IDisposable, IReadyable {
             this._isLinearSpaceComposition,
             this._applyApproximateTransmittance
         ));
-        // Guard: Don't render until global LUTs have been populated.
+
         if (!this._isGlobalLutsReady) {
             return;
         }
@@ -1186,7 +1185,6 @@ export class Atmosphere implements IDisposable, IReadyable {
             this.depthTexture !== null
         ));
 
-        // Guard: Don't render until global LUTs have been populated.
         if (!this._isGlobalLutsReady) {
             return;
         }
