@@ -1755,7 +1755,7 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
      * Custom objects to be checked for readiness during isReady() calls.
      * @internal
      */
-    public readonly _readyables = new Set<IReadyable>();
+    private readonly _readyables = new Set<IReadyable>();
 
     /** @internal */
     public _pendingData = [] as any[];

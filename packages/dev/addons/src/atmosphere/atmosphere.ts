@@ -931,8 +931,7 @@ export class Atmosphere implements IDisposable, IReadyable {
             );
         }
 
-        // Render global LUTs during readiness polling (before the render loop starts).
-        // This breaks the chicken-and-egg problem where LUTs need rendering but rendering
+        // Start rendering of global LUTs during readiness polling.
         this.renderGlobalLuts();
 
         // Check LUTs have data.
