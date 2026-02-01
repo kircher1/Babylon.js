@@ -2997,39 +2997,28 @@
             "excludedEngines": ["webgl1"]
         },
         {
-            "title": "Atmosphere Day (Ray Marching)",
-            "playgroundId": "#VO1Z0C#38",
-            "referenceImage": "atmosphere-day-ray-marching.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
-        },
-        {
             "title": "Atmosphere Sunset",
             "playgroundId": "#VO1Z0C#36",
             "referenceImage": "atmosphere-sunset.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 3
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "Atmosphere Sunset (Planet Origin)",
             "playgroundId": "#VO1Z0C#31",
             "referenceImage": "atmosphere-sunset.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "Atmosphere Night",
             "playgroundId": "#VO1Z0C#13",
             "referenceImage": "atmosphere-night.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "Atmosphere Night (Planet Origin)",
             "playgroundId": "#VO1Z0C#32",
             "referenceImage": "atmosphere-night.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "Atmosphere Space View",
