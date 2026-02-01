@@ -116,15 +116,32 @@ export class AtmospherePBRMaterialPlugin extends MaterialPluginBase {
      * @override
      */
     public override isReadyForSubMesh(): boolean {
-        let isReady = true;
         const atmosphere = this._atmosphere;
+
+        // Check that global LUTs have been rendered with valid data.
+        // We only check hasLutData (CPU-side data availability), not renderTarget.isReady().
+        // This is important because during LUT re-rendering (e.g., when atmosphere properties change),
+        // the render target may temporarily report "not ready" while being used as a framebuffer,
+        // but the old CPU-side data is still valid and can be used for sampling.
+        if (!atmosphere.transmittanceLut?.hasLutData) {
+            return false;
+        }
+
+        // If using diffuse sky irradiance, check it has data too
+        if (atmosphere.diffuseSkyIrradianceLut && !atmosphere.diffuseSkyIrradianceLut.hasLutData) {
+            return false;
+        }
+
+        // For aerial perspective LUT, we still need to check isReady() since it's rendered per-camera
+        // and doesn't have CPU-side hasLutData tracking.
         if (this._isAerialPerspectiveEnabled && atmosphere.isAerialPerspectiveLutEnabled) {
             const aerialPerspectiveLutRenderTarget = atmosphere.aerialPerspectiveLutRenderTarget;
-            isReady = isReady && !!aerialPerspectiveLutRenderTarget?.isReady();
+            if (!aerialPerspectiveLutRenderTarget?.isReady()) {
+                return false;
+            }
         }
-        const transmittanceLutRenderTarget = atmosphere.transmittanceLut?.renderTarget ?? null;
-        isReady = isReady && !!transmittanceLutRenderTarget?.isReady();
-        return isReady;
+
+        return true;
     }
 
     /**

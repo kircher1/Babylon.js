@@ -54,6 +54,7 @@ export class Atmosphere implements IDisposable, IReadyable {
     private readonly _directionToLight = Vector3.Zero();
     private readonly _tempSceneAmbient = new Color3();
     private readonly _engine: AbstractEngine;
+    private readonly _isDiffuseSkyIrradianceLutEnabled: boolean;
     private _physicalProperties: AtmospherePhysicalProperties;
     private _transmittanceLut: Nullable<TransmittanceLut>;
     private _diffuseSkyIrradianceLut: Nullable<DiffuseSkyIrradianceLut>;
@@ -92,6 +93,7 @@ export class Atmosphere implements IDisposable, IReadyable {
     private _aerialPerspectiveLutHasBeenRendered = false;
 
     private _hasRenderedMultiScatteringLut = false;
+    private _hasEverRenderedMultiScatteringLut = false;
     private _multiScatteringEffectWrapper: Nullable<EffectWrapper> = null;
     private _multiScatteringLutRenderTarget: Nullable<RenderTargetTexture> = null;
 
@@ -108,6 +110,7 @@ export class Atmosphere implements IDisposable, IReadyable {
     private _globeAtmosphereCompositorEffectWrapper: Nullable<EffectWrapper> = null;
 
     private _onBeforeCameraRenderObserver: Nullable<Observer<Camera>> = null;
+    private _onBeforeRenderObserver: Nullable<Observer<Scene>> = null;
     private _onBeforeDrawPhaseObserver: Nullable<Observer<Scene>> = null;
     private _onAfterRenderingGroupObserver: Nullable<Observer<RenderingGroupInfo>> = null;
 
@@ -711,6 +714,19 @@ export class Atmosphere implements IDisposable, IReadyable {
         this._minimumMultiScattering.y = minimumMultiScatteringColor.g * this._minimumMultiScatteringIntensity;
         this._minimumMultiScattering.z = minimumMultiScatteringColor.b * this._minimumMultiScatteringIntensity;
 
+        // Initialize light-related values so global LUTs can render before any camera update.
+        // These will be updated per-camera during the render loop.
+        {
+            const light = lights[0];
+            this._directionToLight.copyFrom(light.direction).scaleInPlace(-1);
+            const lightColor = this._linearLightColor.copyFrom(light.diffuse);
+            if (!this._isLinearSpaceLight) {
+                lightColor.toLinearSpaceToRef(lightColor);
+            }
+            const intensity = light.intensity;
+            this._lightRadianceAtCamera.set(intensity * lightColor.r, intensity * lightColor.g, intensity * lightColor.b);
+        }
+
         this._effectRenderer = new EffectRenderer(engine, {
             // Full screen triangle.
             indices: [0, 2, 1],
@@ -720,7 +736,8 @@ export class Atmosphere implements IDisposable, IReadyable {
         this._transmittanceLut = new TransmittanceLut(this);
         this._multiScatteringLutRenderTarget = CreateRenderTargetTexture("atmo-multiScattering", { width: 32, height: 32 }, scene);
         this._multiScatteringEffectWrapper = CreateMultiScatteringEffectWrapper(engine, this.uniformBuffer, this._groundAlbedo);
-        if (options?.isDiffuseSkyIrradianceLutEnabled ?? true) {
+        this._isDiffuseSkyIrradianceLutEnabled = options?.isDiffuseSkyIrradianceLutEnabled ?? true;
+        if (this._isDiffuseSkyIrradianceLutEnabled) {
             this._diffuseSkyIrradianceLut = new DiffuseSkyIrradianceLut(this);
         }
         if (this._isSkyViewLutEnabled) {
@@ -730,36 +747,11 @@ export class Atmosphere implements IDisposable, IReadyable {
             this.aerialPerspectiveLutRenderTarget!;
         }
 
-        // Eagerly create compositor effect wrappers to avoid runtime delays when transitioning between inside/outside atmosphere.
-        this._skyCompositorEffectWrapper = CreateSkyCompositorEffectWrapper(
-            engine,
-            this.uniformBuffer,
-            this._isSkyViewLutEnabled,
-            this._isLinearSpaceComposition,
-            this._applyApproximateTransmittance
-        );
-        this._globeAtmosphereCompositorEffectWrapper = CreateGlobeAtmosphereCompositorEffectWrapper(
-            engine,
-            this.uniformBuffer,
-            this._isSkyViewLutEnabled,
-            this._isLinearSpaceComposition,
-            this._applyApproximateTransmittance,
-            this._aerialPerspectiveIntensity,
-            this._aerialPerspectiveRadianceBias,
-            this.depthTexture !== null
-        );
-        if (this.depthTexture !== null) {
-            this._aerialPerspectiveCompositorEffectWrapper = CreateAerialPerspectiveCompositorEffectWrapper(
-                engine,
-                this.uniformBuffer,
-                this._isAerialPerspectiveLutEnabled,
-                this._isSkyViewLutEnabled,
-                this._isLinearSpaceComposition,
-                this._applyApproximateTransmittance,
-                this._aerialPerspectiveIntensity,
-                this._aerialPerspectiveRadianceBias
-            );
-        }
+        // Render global LUTs once per frame (not per camera). This handles runtime property changes
+        // that mark LUTs dirty after the scene has started rendering.
+        this._onBeforeRenderObserver = scene.onBeforeRenderObservable.add(() => {
+            this.renderGlobalLuts();
+        });
 
         // Before rendering, make sure the per-camera variables have been updated.
         this._onBeforeCameraRenderObserver = scene.onBeforeCameraRenderObservable.add((x) => {
@@ -849,6 +841,8 @@ export class Atmosphere implements IDisposable, IReadyable {
         this._onBeforeDrawPhaseObserver = null;
         this._onAfterRenderingGroupObserver?.remove();
         this._onAfterRenderingGroupObserver = null;
+        this._onBeforeRenderObserver?.remove();
+        this._onBeforeRenderObserver = null;
         this._globeAtmosphereCompositorEffectWrapper?.dispose();
         this._globeAtmosphereCompositorEffectWrapper = null;
         this._skyCompositorEffectWrapper?.dispose();
@@ -909,8 +903,42 @@ export class Atmosphere implements IDisposable, IReadyable {
             return true;
         }
 
+        this._skyCompositorEffectWrapper ??= CreateSkyCompositorEffectWrapper(
+            this._engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance
+        );
+        this._globeAtmosphereCompositorEffectWrapper ??= CreateGlobeAtmosphereCompositorEffectWrapper(
+            this._engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance,
+            this._aerialPerspectiveIntensity,
+            this._aerialPerspectiveRadianceBias,
+            this.depthTexture !== null
+        );
+        if (this.depthTexture !== null) {
+            this._aerialPerspectiveCompositorEffectWrapper ??= CreateAerialPerspectiveCompositorEffectWrapper(
+                this._engine,
+                this.uniformBuffer,
+                this._isAerialPerspectiveLutEnabled,
+                this._isSkyViewLutEnabled,
+                this._isLinearSpaceComposition,
+                this._applyApproximateTransmittance,
+                this._aerialPerspectiveIntensity,
+                this._aerialPerspectiveRadianceBias
+            );
+        }
+
+        // Render global LUTs during readiness polling (before the render loop starts).
+        // This breaks the chicken-and-egg problem where LUTs need rendering but rendering
+        this.renderGlobalLuts();
+
         // Check LUTs have data.
-        if (!this._transmittanceLut?.hasLutData || (this._diffuseSkyIrradianceLut && !this._diffuseSkyIrradianceLut.hasLutData)) {
+        if (!this._transmittanceLut?.hasLutData || (this._isDiffuseSkyIrradianceLutEnabled && !this._diffuseSkyIrradianceLut!.hasLutData)) {
             return false;
         }
         if (!this._hasRenderedMultiScatteringLut || this._multiScatteringLutRenderTarget?.isReady() === false || this._multiScatteringEffectWrapper?.isReady() === false) {
@@ -1007,15 +1035,26 @@ export class Atmosphere implements IDisposable, IReadyable {
             return;
         }
 
-        // Aerial perspective compositor only renders when inside the atmosphere.
-        const isOutsideAtmosphere = this._cameraAtmosphereVariables.clampedCameraRadius > this._physicalProperties.atmosphereRadius;
-        if (isOutsideAtmosphere) {
+        const engine = this._engine;
+        const effectWrapper = (this._aerialPerspectiveCompositorEffectWrapper ??= CreateAerialPerspectiveCompositorEffectWrapper(
+            engine,
+            this.uniformBuffer,
+            this._isAerialPerspectiveLutEnabled,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance,
+            this._aerialPerspectiveIntensity,
+            this._aerialPerspectiveRadianceBias
+        ));
+
+        // Guard: Don't render until global LUTs have been populated.
+        if (!this._isGlobalLutsReady) {
             return;
         }
 
-        const engine = this._engine;
-        const effectWrapper = this._aerialPerspectiveCompositorEffectWrapper;
-        if (!effectWrapper) {
+        // Aerial perspective compositor only renders when inside the atmosphere.
+        const isOutsideAtmosphere = this._cameraAtmosphereVariables.clampedCameraRadius > this._physicalProperties.atmosphereRadius;
+        if (isOutsideAtmosphere) {
             return;
         }
 
@@ -1074,6 +1113,19 @@ export class Atmosphere implements IDisposable, IReadyable {
             return;
         }
 
+        const engine = this._engine;
+        const effectWrapper = (this._skyCompositorEffectWrapper ??= CreateSkyCompositorEffectWrapper(
+            engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance
+        ));
+        // Guard: Don't render until global LUTs have been populated.
+        if (!this._isGlobalLutsReady) {
+            return;
+        }
+
         // The sky compositor only renders when inside the atmosphere.
         const isOutsideAtmosphere = this._cameraAtmosphereVariables.clampedCameraRadius > this._physicalProperties.atmosphereRadius;
         if (isOutsideAtmosphere) {
@@ -1081,12 +1133,6 @@ export class Atmosphere implements IDisposable, IReadyable {
         }
 
         if (this.depthTexture !== null && !this.depthTexture.isReady()) {
-            return;
-        }
-
-        const engine = this._engine;
-        const effectWrapper = this._skyCompositorEffectWrapper;
-        if (!effectWrapper) {
             return;
         }
 
@@ -1130,15 +1176,26 @@ export class Atmosphere implements IDisposable, IReadyable {
             return;
         }
 
-        // Globe atmosphere compositor only renders when outside the atmosphere.
-        const isOutsideAtmosphere = this._cameraAtmosphereVariables.clampedCameraRadius > this._physicalProperties.atmosphereRadius;
-        if (!isOutsideAtmosphere) {
+        const engine = this._engine;
+        const effectWrapper = (this._globeAtmosphereCompositorEffectWrapper ??= CreateGlobeAtmosphereCompositorEffectWrapper(
+            engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance,
+            this._aerialPerspectiveIntensity,
+            this._aerialPerspectiveRadianceBias,
+            this.depthTexture !== null
+        ));
+
+        // Guard: Don't render until global LUTs have been populated.
+        if (!this._isGlobalLutsReady) {
             return;
         }
 
-        const engine = this._engine;
-        const effectWrapper = this._globeAtmosphereCompositorEffectWrapper;
-        if (!effectWrapper) {
+        // Globe atmosphere compositor only renders when outside the atmosphere.
+        const isOutsideAtmosphere = this._cameraAtmosphereVariables.clampedCameraRadius > this._physicalProperties.atmosphereRadius;
+        if (!isOutsideAtmosphere) {
             return;
         }
 
@@ -1195,30 +1252,30 @@ export class Atmosphere implements IDisposable, IReadyable {
         this._globeAtmosphereCompositorEffectWrapper = null;
     }
 
+    private get _isGlobalLutsReady(): boolean {
+        return (
+            this._hasEverRenderedMultiScatteringLut &&
+            !!this._transmittanceLut?.hasLutData &&
+            (!this._isDiffuseSkyIrradianceLutEnabled || this._diffuseSkyIrradianceLut!.hasLutData)
+        );
+    }
+
     /**
      * Updates the camera variables that are specific to the atmosphere.
      * @param camera - The camera to update the variables for.
      */
     private _updatePerCameraVariables(camera: Camera): void {
         const light = this._lights[0];
-        this._directionToLight.copyFrom(light.direction);
-        this._directionToLight.scaleInPlace(-1);
+        const directionToLight = this._directionToLight.copyFrom(light.direction).scaleInPlace(-1);
 
         const properties = this._physicalProperties;
         const cameraAtmosphereVariables = this._cameraAtmosphereVariables;
-        cameraAtmosphereVariables.update(
-            camera,
-            properties.planetRadius,
-            properties.planetRadiusWithOffset,
-            properties.atmosphereRadius,
-            this._directionToLight,
-            this.originHeight
-        );
+        cameraAtmosphereVariables.update(camera, properties.planetRadius, properties.planetRadiusWithOffset, properties.atmosphereRadius, directionToLight, this.originHeight);
 
         this._transmittanceLut!.updateLightParameters(light, cameraAtmosphereVariables.clampedCameraRadius, cameraAtmosphereVariables.cameraGeocentricNormal);
         this._linearLightColor.copyFrom(light.diffuse);
 
-        this.getDiffuseSkyIrradianceToRef(this._directionToLight, 0, cameraAtmosphereVariables.cameraGeocentricNormal, this.lights[0].intensity, this._tempSceneAmbient);
+        this.getDiffuseSkyIrradianceToRef(directionToLight, 0, cameraAtmosphereVariables.cameraGeocentricNormal, light.intensity, this._tempSceneAmbient);
         if (!this.isLinearSpaceLight) {
             this._tempSceneAmbient.toGammaSpaceToRef(this._tempSceneAmbient);
         }
@@ -1254,10 +1311,6 @@ export class Atmosphere implements IDisposable, IReadyable {
         {
             this.onBeforeRenderLutsForCameraObservable.notifyObservers(camera);
 
-            // After UBO update we can render the global LUTs which use some of these values on the GPU.
-            // TODO: Could break out update and UBOs to global vs. per-camera.
-            this.renderGlobalLuts();
-
             // If atmosphere is enabled, render the per-camera LUTs (sky view and aerial perspective).
             if (isEnabled && !this._transmittanceLut!.isDirty && this._hasRenderedMultiScatteringLut) {
                 if (this._isSkyViewLutEnabled) {
@@ -1286,6 +1339,10 @@ export class Atmosphere implements IDisposable, IReadyable {
      * Renders the lookup tables that do not depend on a camera position.
      */
     public renderGlobalLuts(): void {
+        if (this.uniformBuffer.useUbo) {
+            this.updateUniformBuffer();
+        }
+
         const hasNewTransmittanceLut = this._transmittanceLut!.render();
         if (hasNewTransmittanceLut) {
             this._hasRenderedMultiScatteringLut = false;
@@ -1297,6 +1354,7 @@ export class Atmosphere implements IDisposable, IReadyable {
             if (this._multiScatteringEffectWrapper?.isReady() && this._multiScatteringLutRenderTarget?.isReady()) {
                 this._drawMultiScatteringLut();
                 this._hasRenderedMultiScatteringLut = true;
+                this._hasEverRenderedMultiScatteringLut = true;
             }
         }
 
@@ -1314,11 +1372,7 @@ export class Atmosphere implements IDisposable, IReadyable {
         const isWGSL = effect.shaderLanguage === ShaderLanguage.WGSL;
         const blockName = isWGSL ? "atmosphere" : uniformBuffer.name;
         uniformBuffer.bindToEffect(effect, blockName);
-        if (uniformBuffer.useUbo) {
-            uniformBuffer.update();
-        } else {
-            this.updateUniformBuffer();
-        }
+        uniformBuffer.useUbo ? uniformBuffer.update() : this.updateUniformBuffer();
     }
 
     /**
@@ -1451,7 +1505,6 @@ const CreateEffectWrapper = (
     defineNames?: string[]
 ): EffectWrapper => {
     const defines = defineNames?.map((defineName) => `#define ${defineName}`) ?? [];
-
     return new EffectWrapper({
         engine,
         name,
@@ -1551,6 +1604,8 @@ const DrawEffect = (
         return;
     }
 
+    effectRenderer.saveStates();
+
     // Set additional depth/stencil states before calling applyEffectWrapper.
     const currentDepthWrite = engine.getDepthWrite();
     if (depthWrite !== undefined) {
@@ -1565,11 +1620,11 @@ const DrawEffect = (
         engine.setAlphaMode(alphaMode);
     }
 
-    effectRenderer.saveStates();
+    const currentCull = engine.depthCullingState.cull;
+
     effectRenderer.setViewport();
     effectRenderer.applyEffectWrapper(effectWrapper, depthTest); // Note, stencil is false by default.
 
-    const currentCull = engine.depthCullingState.cull;
     engine.depthCullingState.cull = false;
 
     const effect = effectWrapper.effect;

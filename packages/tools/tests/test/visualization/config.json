@@ -2991,6 +2991,12 @@
             "excludedEngines": ["webgl1"]
         },
         {
+            "title": "Atmosphere Day (Ray Marching)",
+            "playgroundId": "#VO1Z0C#38",
+            "referenceImage": "atmosphere-day-ray-marching.png",
+            "excludedEngines": ["webgl1"]
+        },
+        {
             "title": "Atmosphere Sunset",
             "playgroundId": "#VO1Z0C#36",
             "referenceImage": "atmosphere-sunset.png",
@@ -3022,8 +3028,7 @@
             "title": "Atmosphere Space View",
             "playgroundId": "#VO1Z0C#6",
             "referenceImage": "atmosphere-space-view.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
+            "excludedEngines": ["webgl1"]
         },
         {
             "title": "OpenPBR IBL Reflectance with IOR",
