@@ -116,11 +116,11 @@ export interface IDisposable {
 }
 
 /**
- * Define an interface for objects that can be checked for readiness.
+ * Define an interface that can be checked for readiness.
  */
 export interface IReadyable {
     /**
-     * Returns true if the object is ready.
+     * Returns true if ready.
      * @returns true if ready
      */
     isReady(): boolean;
@@ -1751,10 +1751,6 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
     public _toBeDisposed = new Array<Nullable<IDisposable>>(256);
     private _activeRequests = new Array<IFileRequest>();
 
-    /**
-     * Custom objects to be checked for readiness during isReady() calls.
-     * @internal
-     */
     private readonly _readyables = new Set<IReadyable>();
 
     /** @internal */
@@ -2082,7 +2078,7 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
     }
 
     /**
-     * Registers a custom object to be checked for readiness during {@link isReady} calls.
+     * Registers an object to be checked during {@link isReady}.
      * @param readyable - The object to register.
      */
     public registerReadyable(readyable: IReadyable): void {
@@ -2090,7 +2086,7 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
     }
 
     /**
-     * Unregisters a previously registered custom readyable object.
+     * Unregisters an object from being checked during {@link isReady}.
      * @param readyable - The object to unregister.
      */
     public unregisterReadyable(readyable: IReadyable): void {
