@@ -2997,13 +2997,6 @@
             "excludedEngines": ["webgl1"]
         },
         {
-            "title": "Atmosphere Day (Ray Marching)",
-            "playgroundId": "#VO1Z0C#38",
-            "referenceImage": "atmosphere-day-ray-marching.png",
-            "excludedEngines": ["webgl1"],
-            "renderCount": 60
-        },
-        {
             "title": "Atmosphere Sunset",
             "playgroundId": "#VO1Z0C#36",
             "referenceImage": "atmosphere-sunset.png",
