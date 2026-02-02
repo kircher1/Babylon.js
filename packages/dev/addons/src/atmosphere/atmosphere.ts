@@ -934,7 +934,7 @@ export class Atmosphere implements IDisposable, IReadyable {
         this.renderGlobalLuts();
 
         // Check LUTs have data.
-        if (!this._transmittanceLut?.hasLutData || (this._isDiffuseSkyIrradianceLutEnabled && !this._diffuseSkyIrradianceLut!.hasLutData)) {
+        if (!this._transmittanceLut?.hasLutData || (this._isDiffuseSkyIrradianceLutEnabled && !this._diffuseSkyIrradianceLut?.hasLutData)) {
             return false;
         }
         if (!this._hasRenderedMultiScatteringLut || this._multiScatteringLutRenderTarget?.isReady() === false || this._multiScatteringEffectWrapper?.isReady() === false) {
