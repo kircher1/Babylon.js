@@ -122,8 +122,6 @@ export class AtmospherePBRMaterialPlugin extends MaterialPluginBase {
             return false;
         }
 
-        // For aerial perspective LUT, we still need to check isReady() since it's rendered per-camera
-        // and doesn't have CPU-side hasLutData tracking.
         if (this._isAerialPerspectiveEnabled && atmosphere.isAerialPerspectiveLutEnabled) {
             const aerialPerspectiveLutRenderTarget = atmosphere.aerialPerspectiveLutRenderTarget;
             if (!aerialPerspectiveLutRenderTarget?.isReady()) {
