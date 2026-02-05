@@ -16,13 +16,15 @@ import type { Effect } from "core/Materials/effect";
 import { EffectRenderer, EffectWrapper } from "core/Materials/effectRenderer";
 import type { IAtmosphereOptions } from "./atmosphereOptions";
 import type { IColor3Like, IVector3Like } from "core/Maths/math.like";
-import type { IDisposable, IIsReadyable, Scene } from "core/scene";
+import type { IDisposable, Scene } from "core/scene";
+import { Mesh } from "core/Meshes/mesh";
 import { Observable, type Observer } from "core/Misc/observable";
 import { RegisterMaterialPlugin, UnregisterMaterialPlugin } from "core/Materials/materialPluginManager";
 import type { RenderingGroupInfo } from "core/Rendering/renderingManager";
 import { RenderTargetTexture, type RenderTargetTextureOptions } from "core/Materials/Textures/renderTargetTexture";
 import type { RenderTargetWrapper } from "core/Engines/renderTargetWrapper";
 import { ShaderLanguage } from "core/Materials/shaderLanguage";
+import { SubMesh } from "core/Meshes/subMesh";
 import { TransmittanceLut } from "./transmittanceLut";
 import { UniformBuffer } from "core/Materials/uniformBuffer";
 import { Vector3 } from "core/Maths/math.vector";
@@ -45,11 +47,35 @@ const AerialPerspectiveLutLayers = 32;
 let UniqueId = 0;
 
 /**
+ * Creates a sentinel mesh that delegates isReady() to the Atmosphere.
+ * This allows scene.isReady() to account for atmosphere readiness.
+ * @param atmosphere - The atmosphere instance.
+ * @param scene - The scene to create the mesh in.
+ * @returns The sentinel mesh.
+ */
+const CreateSentinelMesh = (atmosphere: Atmosphere, scene: Scene): Mesh => {
+    const mesh = new Mesh(`__atmosphere_sentinel_${atmosphere.uniqueId}__`, scene);
+    mesh.isVisible = false;
+    mesh.isPickable = false;
+    mesh.doNotSyncBoundingInfo = true;
+
+    // A submesh is required for scene.isReady() to check this mesh.
+    mesh.subMeshes = [];
+    SubMesh.AddToMesh(0, 0, 0, 0, 0, mesh, undefined, false);
+
+    mesh.isReady = (): boolean => {
+        return atmosphere.isReady();
+    };
+
+    return mesh;
+};
+
+/**
  * Renders a physically based atmosphere.
  * Use {@link IsSupported} to check if the atmosphere is supported before creating an instance.
  * @experimental
  */
-export class Atmosphere implements IDisposable, IIsReadyable {
+export class Atmosphere implements IDisposable {
     private readonly _directionToLight = Vector3.Zero();
     private readonly _tempSceneAmbient = new Color3();
     private readonly _engine: AbstractEngine;
@@ -112,6 +138,7 @@ export class Atmosphere implements IDisposable, IIsReadyable {
     private _onBeforeRenderObserver: Nullable<Observer<Scene>> = null;
     private _onBeforeDrawPhaseObserver: Nullable<Observer<Scene>> = null;
     private _onAfterRenderingGroupObserver: Nullable<Observer<RenderingGroupInfo>> = null;
+    private _readyCheckSentinelMesh: Nullable<Mesh> = null;
 
     /**
      * Checks if the {@link Atmosphere} is supported.
@@ -747,6 +774,7 @@ export class Atmosphere implements IDisposable, IIsReadyable {
 
         // Render global LUTs once per frame (not per camera).
         this._onBeforeRenderObserver = scene.onBeforeRenderObservable.add(() => {
+            this._disposeReadyCheckSentinelMesh(); // Dispose ready sentinel mesh as soon as we start rendering.
             this.renderGlobalLuts();
         });
 
@@ -824,14 +852,20 @@ export class Atmosphere implements IDisposable, IIsReadyable {
             return null;
         });
 
-        scene.registerReadyable(this);
+        // Create a sentinel mesh that delegates isReady to the Atmosphere.
+        this._readyCheckSentinelMesh = CreateSentinelMesh(this, scene);
+    }
+
+    private _disposeReadyCheckSentinelMesh(): void {
+        this._readyCheckSentinelMesh?.dispose();
+        this._readyCheckSentinelMesh = null;
     }
 
     /**
      * @override
      */
     public dispose(): void {
-        this.scene.unregisterReadyable(this);
+        this._disposeReadyCheckSentinelMesh();
         this._onBeforeCameraRenderObserver?.remove();
         this._onBeforeCameraRenderObserver = null;
         this._onBeforeDrawPhaseObserver?.remove();
@@ -955,6 +989,9 @@ export class Atmosphere implements IDisposable, IIsReadyable {
         ) {
             return false;
         }
+
+        // Dispose the ready check sentinel mesh now that we're ready.
+        this._disposeReadyCheckSentinelMesh();
 
         return true;
     }

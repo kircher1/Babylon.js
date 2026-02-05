@@ -115,17 +115,6 @@ export interface IDisposable {
     dispose(): void;
 }
 
-/**
- * Define an interface that can report if it is ready.
- */
-export interface IIsReadyable {
-    /**
-     * Returns true if ready.
-     * @returns true if ready
-     */
-    isReady(): boolean;
-}
-
 // Defining Temps for the file to avoid misuse of shared TmpVectors
 const TempVect1 = new Vector4();
 const TempVect2 = new Vector4();
@@ -1751,8 +1740,6 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
     public _toBeDisposed = new Array<Nullable<IDisposable>>(256);
     private _activeRequests = new Array<IFileRequest>();
 
-    private readonly _readyables = new Set<IIsReadyable>();
-
     /** @internal */
     public _pendingData = [] as any[];
     private _isDisposed = false;
@@ -2075,22 +2062,6 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
         if (!options || !options.virtual) {
             engine.onNewSceneAddedObservable.notifyObservers(this);
         }
-    }
-
-    /**
-     * Registers an object to be checked during {@link isReady}.
-     * @param readyable - The object to register.
-     */
-    public registerReadyable(readyable: IIsReadyable): void {
-        this._readyables.add(readyable);
-    }
-
-    /**
-     * Unregisters an object from being checked during {@link isReady}.
-     * @param readyable - The object to unregister.
-     */
-    public unregisterReadyable(readyable: IIsReadyable): void {
-        this._readyables.delete(readyable);
     }
 
     /**
@@ -2533,13 +2504,6 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
         // Effects
         if (!engine.areAllEffectsReady()) {
             isReady = false;
-        }
-
-        // Custom readyables
-        for (const readyable of this._readyables) {
-            if (!readyable.isReady()) {
-                isReady = false;
-            }
         }
 
         engine.currentRenderPassId = currentRenderPassId;
@@ -5658,8 +5622,6 @@ export class Scene implements IAnimatable, IClipPlanesHolder, IAssetContainer {
         this._pointerMoveStage.clear();
         this._pointerDownStage.clear();
         this._pointerUpStage.clear();
-
-        this._readyables.clear();
 
         this.importedMeshesFiles = [] as string[];
 
