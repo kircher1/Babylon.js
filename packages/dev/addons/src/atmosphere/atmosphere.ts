@@ -16,7 +16,7 @@ import type { Effect } from "core/Materials/effect";
 import { EffectRenderer, EffectWrapper } from "core/Materials/effectRenderer";
 import type { IAtmosphereOptions } from "./atmosphereOptions";
 import type { IColor3Like, IVector3Like } from "core/Maths/math.like";
-import type { IDisposable, IReadyable, Scene } from "core/scene";
+import type { IDisposable, IIsReadyable, Scene } from "core/scene";
 import { Observable, type Observer } from "core/Misc/observable";
 import { RegisterMaterialPlugin, UnregisterMaterialPlugin } from "core/Materials/materialPluginManager";
 import type { RenderingGroupInfo } from "core/Rendering/renderingManager";
@@ -49,7 +49,7 @@ let UniqueId = 0;
  * Use {@link IsSupported} to check if the atmosphere is supported before creating an instance.
  * @experimental
  */
-export class Atmosphere implements IDisposable, IReadyable {
+export class Atmosphere implements IDisposable, IIsReadyable {
     private readonly _directionToLight = Vector3.Zero();
     private readonly _tempSceneAmbient = new Color3();
     private readonly _engine: AbstractEngine;
