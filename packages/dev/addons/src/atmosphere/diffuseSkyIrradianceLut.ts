@@ -122,7 +122,7 @@ export class DiffuseSkyIrradianceLut {
                         : [import("./Shaders/fullscreenTriangle.vertex"), import("./Shaders/diffuseSkyIrradiance.fragment")]
                 );
 
-                // Patch hdrFilteringFunctions: replace CUSTOM_IRRADIANCE_FILTERING tokens with our implementations.
+                // Replace the CUSTOM_IRRADIANCE_FILTERING placeholder with call to integrateForIrradiance.
                 const includeStore = useWebGPU ? ShaderStore.IncludesShadersStoreWGSL : ShaderStore.IncludesShadersStore;
                 let patchedInclude = includeStore["hdrFilteringFunctions"];
                 patchedInclude = patchedInclude.replace(/(?<!#ifdef\s|#ifndef\s)CUSTOM_IRRADIANCE_FILTERING_INPUT/g, "");
@@ -131,7 +131,7 @@ export class DiffuseSkyIrradianceLut {
                     useWebGPU ? "var c = integrateForIrradiance(n, Ls, vec3f(0., filteringInfo.x, 0.));" : "vec3 c = integrateForIrradiance(n, Ls, vec3(0., filteringInfo.x, 0.));"
                 );
 
-                // Inline the patched include into the diffuseSkyIrradiancePixelShader.
+                // Replace the existing #include<hdrFilteringFunctions> with the patched include.
                 const shaderStore = useWebGPU ? ShaderStore.ShadersStoreWGSL : ShaderStore.ShadersStore;
                 let shader = shaderStore["diffuseSkyIrradiancePixelShader"];
                 shader = shader.replace("#include<hdrFilteringFunctions>", patchedInclude);
