@@ -37,7 +37,6 @@ let UniqueId = 0;
 
 /**
  * Creates a sentinel mesh that delegates isReady() to the Atmosphere.
- * This allows scene.isReady() to account for atmosphere readiness.
  * @param atmosphere - The atmosphere instance.
  * @param scene - The scene to create the mesh in.
  * @returns The sentinel mesh.
@@ -52,9 +51,8 @@ const CreateSentinelMesh = (atmosphere: Atmosphere, scene: Scene): Mesh => {
     mesh.subMeshes = [];
     SubMesh.AddToMesh(0, 0, 0, 0, 0, mesh, undefined, false);
 
-    mesh.isReady = (): boolean => {
-        return atmosphere.isReady();
-    };
+    // Delegate isReady to the atmosphere.
+    mesh.isReady = () => atmosphere.isReady();
 
     return mesh;
 };
