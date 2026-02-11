@@ -14,6 +14,8 @@ import { AddClipPlaneUniforms, BindClipPlane } from "../clipPlaneMaterialHelper"
 import { Camera } from "../../Cameras/camera";
 import { ShadowDepthWrapper } from "../../Materials/shadowDepthWrapper";
 import { ShaderMaterial } from "../../Materials/shaderMaterial";
+import { MaterialPluginEvent } from "../materialPluginEvent";
+import { Material } from "../material";
 
 import "../../Shaders/gaussianSplatting.fragment";
 import "../../Shaders/gaussianSplatting.vertex";
@@ -34,6 +36,9 @@ import {
 } from "../materialHelper.functions";
 import { ShaderLanguage } from "../shaderLanguage";
 
+// Can be up to 256, then we'll need to change the partIndices texture format to uint16
+export const GaussianSplattingMaxPartCount = 256;
+
 /**
  * @internal
  */
@@ -50,7 +55,7 @@ class GaussianSplattingMaterialDefines extends MaterialDefines {
     public SH_DEGREE = 0;
     public COMPENSATION = false;
     public IS_COMPOUND = false;
-    public MAX_PART_COUNT = 16; // Can be up to 256, then we'll need to change the partIndices texture format to uint16
+    public MAX_PART_COUNT = GaussianSplattingMaxPartCount;
 
     /**
      * Constructor of the defines.
@@ -179,6 +184,7 @@ export class GaussianSplattingMaterial extends PushMaterial {
         }
 
         if (!subMesh.materialDefines) {
+            this._callbackPluginEventGeneric(MaterialPluginEvent.GetDefineNames, this._eventInfo);
             defines = subMesh.materialDefines = new GaussianSplattingMaterialDefines();
         }
 
@@ -186,6 +192,16 @@ export class GaussianSplattingMaterial extends PushMaterial {
 
         if (this._isReadyForSubMesh(subMesh)) {
             return true;
+        }
+
+        // Check plugin readiness
+        this._eventInfo.isReadyForSubMesh = true;
+        this._eventInfo.defines = defines;
+        this._eventInfo.subMesh = subMesh;
+        this._callbackPluginEventIsReadyForSubMesh(this._eventInfo);
+
+        if (!this._eventInfo.isReadyForSubMesh) {
+            return false;
         }
 
         if (!this._sourceMesh) {
@@ -235,27 +251,50 @@ export class GaussianSplattingMaterial extends PushMaterial {
             //Attributes
             PrepareAttributesForInstances(GaussianSplattingMaterial._Attribs, defines);
 
+            const attribs = GaussianSplattingMaterial._Attribs.slice();
+            const uniforms = GaussianSplattingMaterial._Uniforms.slice();
+            const samplers = GaussianSplattingMaterial._Samplers.slice();
+            const uniformBuffers = GaussianSplattingMaterial._UniformBuffers.slice();
+
             PrepareUniformsAndSamplersList(<IEffectCreationOptions>{
-                uniformsNames: GaussianSplattingMaterial._Uniforms,
-                uniformBuffersNames: GaussianSplattingMaterial._UniformBuffers,
-                samplers: GaussianSplattingMaterial._Samplers,
+                uniformsNames: uniforms,
+                uniformBuffersNames: uniformBuffers,
+                samplers: samplers,
                 defines: defines,
             });
 
-            AddClipPlaneUniforms(GaussianSplattingMaterial._Uniforms);
+            AddClipPlaneUniforms(uniforms);
+
+            // Let plugin manager prepare its uniform/sampler/ubo lists
+            if (!this._uniformBufferLayoutBuilt) {
+                this.buildUniformLayout();
+            }
+
+            // Prepare plugin effect
+            this._eventInfo.fallbackRank = 0;
+            this._eventInfo.defines = defines;
+            this._eventInfo.attributes = attribs;
+            this._eventInfo.uniforms = uniforms;
+            this._eventInfo.samplers = samplers;
+            this._eventInfo.uniformBuffersNames = uniformBuffers;
+            this._eventInfo.customCode = undefined;
+            this._eventInfo.mesh = mesh;
+
+            this._callbackPluginEventGeneric(MaterialPluginEvent.PrepareEffect, this._eventInfo);
 
             const join = defines.toString();
             const effect = scene.getEngine().createEffect(
                 "gaussianSplatting",
                 <IEffectCreationOptions>{
-                    attributes: GaussianSplattingMaterial._Attribs,
-                    uniformsNames: GaussianSplattingMaterial._Uniforms,
-                    uniformBuffersNames: GaussianSplattingMaterial._UniformBuffers,
-                    samplers: GaussianSplattingMaterial._Samplers,
+                    attributes: attribs,
+                    uniformsNames: uniforms,
+                    uniformBuffersNames: uniformBuffers,
+                    samplers: samplers,
                     defines: join,
                     onCompiled: this.onCompiled,
                     onError: this.onError,
                     indexParameters: {},
+                    processCodeAfterIncludes: this._eventInfo.customCode,
                     shaderLanguage: this._shaderLanguage,
                     extraInitializationsAsync: async () => {
                         if (this._shaderLanguage === ShaderLanguage.WGSL) {
@@ -418,6 +457,10 @@ export class GaussianSplattingMaterial extends PushMaterial {
             BindLogDepth(defines, effect, scene);
         }
 
+        // Bind plugins
+        this._eventInfo.subMesh = subMesh;
+        this._callbackPluginEventBindForSubMesh(this._eventInfo);
+
         this._afterBind(mesh, this._activeEffect, subMesh);
     }
 
@@ -507,12 +550,14 @@ export class GaussianSplattingMaterial extends PushMaterial {
      */
     public makeDepthRenderingMaterial(scene: Scene, shaderLanguage: ShaderLanguage, alphaBlendedDepth: boolean = false, compoundMesh: boolean = false): ShaderMaterial {
         const defines = ["#define DEPTH_RENDER"];
+
         if (alphaBlendedDepth) {
             defines.push("#define ALPHA_BLENDED_DEPTH");
         }
+
         if (compoundMesh) {
             defines.push("#define IS_COMPOUND");
-            defines.push("#define MAX_PART_COUNT 16");
+            defines.push(`#define MAX_PART_COUNT ${GaussianSplattingMaxPartCount}`);
         }
 
         const shaderMaterial = new ShaderMaterial(
@@ -576,7 +621,14 @@ export class GaussianSplattingMaterial extends PushMaterial {
      * @returns The cloned material.
      */
     public override clone(name: string): GaussianSplattingMaterial {
-        return SerializationHelper.Clone(() => new GaussianSplattingMaterial(name, this.getScene()), this);
+        const clone = SerializationHelper.Clone(() => new GaussianSplattingMaterial(name, this.getScene()), this);
+
+        clone.id = name;
+        clone.name = name;
+
+        this._clonePlugins(clone, "");
+
+        return clone;
     }
 
     /**
@@ -605,7 +657,11 @@ export class GaussianSplattingMaterial extends PushMaterial {
      * @returns the instantiated GaussianSplattingMaterial.
      */
     public static override Parse(source: any, scene: Scene, rootUrl: string): GaussianSplattingMaterial {
-        return SerializationHelper.Parse(() => new GaussianSplattingMaterial(source.name, scene), source, scene, rootUrl);
+        const material = SerializationHelper.Parse(() => new GaussianSplattingMaterial(source.name, scene), source, scene, rootUrl);
+
+        Material._ParsePlugins(source, material, scene, rootUrl);
+
+        return material;
     }
 }
 

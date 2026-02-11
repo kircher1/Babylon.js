@@ -122,12 +122,14 @@ export class DiffuseSkyIrradianceLut {
                         : [import("./Shaders/fullscreenTriangle.vertex"), import("./Shaders/diffuseSkyIrradiance.fragment")]
                 );
 
-                // Replace the CUSTOM_IRRADIANCE_FILTERING placeholder with call to integrateForIrradiance.
+                // Replace the CUSTOM_IRRADIANCE_FILTERING_INPUT and CUSTOM_IRRADIANCE_FILTERING_FUNCTION placeholders.
+                // Note, the regex replacements look for lines that *only* contain these placeholder strings.
+                // Since buildShaders removes leading whitespace, the placeholders are expected to start at the beginning of the line.
                 const includeStore = useWebGPU ? ShaderStore.IncludesShadersStoreWGSL : ShaderStore.IncludesShadersStore;
                 let patchedInclude = includeStore["hdrFilteringFunctions"];
-                patchedInclude = patchedInclude.replace(/(?<!#ifdef\s|#ifndef\s)CUSTOM_IRRADIANCE_FILTERING_INPUT/g, "");
+                patchedInclude = patchedInclude.replace(/^CUSTOM_IRRADIANCE_FILTERING_INPUT\s*$/gm, "");
                 patchedInclude = patchedInclude.replace(
-                    /(?<!#ifdef\s|#ifndef\s)CUSTOM_IRRADIANCE_FILTERING_FUNCTION/g,
+                    /^CUSTOM_IRRADIANCE_FILTERING_FUNCTION\s*$/gm,
                     useWebGPU ? "var c = integrateForIrradiance(n, Ls, vec3f(0., filteringInfo.x, 0.));" : "vec3 c = integrateForIrradiance(n, Ls, vec3(0., filteringInfo.x, 0.));"
                 );
 
