@@ -2,23 +2,18 @@ import type { IDisposable, Scene } from "core/index";
 import type { DynamicAccordionSection, DynamicAccordionSectionContent } from "../../components/extensibleAccordion";
 import type { IService, ServiceDefinition } from "../../modularity/serviceDefinition";
 import type { ISceneContext } from "../sceneContext";
-import type { ISettingsContext } from "../settingsContext";
 import type { IShellService } from "../shellService";
 
 import { SettingsRegular } from "@fluentui/react-icons";
 
-import { DataStorage } from "core/Misc/dataStorage";
-import { Observable } from "core/Misc/observable";
-import { ButtonLine } from "shared-ui-components/fluent/hoc/buttonLine";
 import { SwitchPropertyLine } from "shared-ui-components/fluent/hoc/propertyLines/switchPropertyLine";
 import { AccordionSection } from "shared-ui-components/fluent/primitives/accordion";
 import { ExtensibleAccordion } from "../../components/extensibleAccordion";
-import { useProperty } from "../../hooks/compoundPropertyHooks";
 import { useObservableCollection, useObservableState, useOrderedObservableCollection } from "../../hooks/observableHooks";
-import { useCompactMode, useDisableCopy, useSidePaneDockOverrides } from "../../hooks/settingsHooks";
+import { useSetting } from "../../hooks/settingsHooks";
 import { ObservableCollection } from "../../misc/observableCollection";
+import { CompactModeSettingDescriptor, DisableCopySettingDescriptor, UseDegreesSettingDescriptor, UseEulerSettingDescriptor } from "../globalSettings";
 import { SceneContextIdentity } from "../sceneContext";
-import { SettingsContextIdentity } from "../settingsContext";
 import { ShellServiceIdentity } from "../shellService";
 
 export const SettingsServiceIdentity = Symbol("SettingsService");
@@ -28,99 +23,25 @@ export const SettingsServiceIdentity = Symbol("SettingsService");
  */
 export interface ISettingsService extends IService<typeof SettingsServiceIdentity> {
     /**
-     * Adds a new section.
+     * Adds a new section to the settings pane.
      * @param section A description of the section to add.
      */
     addSection(section: DynamicAccordionSection): IDisposable;
 
     /**
-     * Adds content to one or more sections.
+     * Adds content to one or more sections in the settings pane.
      * @param content A description of the content to add.
      */
     addSectionContent(content: DynamicAccordionSectionContent<Scene>): IDisposable;
 }
 
-export const SettingsServiceDefinition: ServiceDefinition<[ISettingsContext, ISettingsService], [IShellService, ISceneContext]> = {
+export const SettingsServiceDefinition: ServiceDefinition<[ISettingsService], [IShellService, ISceneContext]> = {
     friendlyName: "Settings",
     consumes: [ShellServiceIdentity, SceneContextIdentity],
-    produces: [SettingsContextIdentity, SettingsServiceIdentity],
+    produces: [SettingsServiceIdentity],
     factory: (shellService, sceneContext) => {
         const sectionsCollection = new ObservableCollection<DynamicAccordionSection>();
         const sectionContentCollection = new ObservableCollection<DynamicAccordionSectionContent<Scene>>();
-
-        let useDegrees = DataStorage.ReadBoolean("Babylon/Settings/UseDegrees", false);
-        let useEuler = DataStorage.ReadBoolean("Babylon/Settings/UseEuler", false);
-        let ignoreBackfacesForPicking = DataStorage.ReadBoolean("Babylon/Settings/IgnoreBackfacesForPicking", false);
-        let showPropertiesOnEntitySelection = DataStorage.ReadBoolean("Babylon/Settings/ShowPropertiesOnEntitySelection", true);
-        let highlightSelectedEntity = DataStorage.ReadBoolean("Babylon/Settings/HighlightSelectedEntity", true);
-
-        const settings = {
-            get useDegrees() {
-                return useDegrees;
-            },
-            set useDegrees(value: boolean) {
-                if (useDegrees === value) {
-                    return; // No change, no need to notify
-                }
-                useDegrees = value;
-
-                DataStorage.WriteBoolean("Babylon/Settings/UseDegrees", useDegrees);
-
-                this.settingsChangedObservable.notifyObservers(this);
-            },
-            get ignoreBackfacesForPicking() {
-                return ignoreBackfacesForPicking;
-            },
-            set ignoreBackfacesForPicking(value: boolean) {
-                if (ignoreBackfacesForPicking === value) {
-                    return; // No change, no need to notify
-                }
-                ignoreBackfacesForPicking = value;
-
-                DataStorage.WriteBoolean("Babylon/Settings/IgnoreBackfacesForPicking", ignoreBackfacesForPicking);
-                this.settingsChangedObservable.notifyObservers(this);
-            },
-            get useEuler() {
-                return useEuler;
-            },
-            set useEuler(value: boolean) {
-                if (useEuler === value) {
-                    return; // No change, no need to notify
-                }
-                useEuler = value;
-
-                DataStorage.WriteBoolean("Babylon/Settings/UseEuler", useEuler);
-                this.settingsChangedObservable.notifyObservers(this);
-            },
-            get showPropertiesOnEntitySelection() {
-                return showPropertiesOnEntitySelection;
-            },
-            set showPropertiesOnEntitySelection(value: boolean) {
-                if (showPropertiesOnEntitySelection === value) {
-                    return; // No change, no need to notify
-                }
-                showPropertiesOnEntitySelection = value;
-
-                DataStorage.WriteBoolean("Babylon/Settings/ShowPropertiesOnEntitySelection", showPropertiesOnEntitySelection);
-                this.settingsChangedObservable.notifyObservers(this);
-            },
-            get highlightSelectedEntity() {
-                return highlightSelectedEntity;
-            },
-            set highlightSelectedEntity(value: boolean) {
-                if (highlightSelectedEntity === value) {
-                    return; // No change, no need to notify
-                }
-                highlightSelectedEntity = value;
-
-                DataStorage.WriteBoolean("Babylon/Settings/HighlightSelectedEntity", highlightSelectedEntity);
-                this.settingsChangedObservable.notifyObservers(this);
-            },
-            settingsChangedObservable: new Observable<ISettingsContext>(),
-            addSection: (section: DynamicAccordionSection) => sectionsCollection.add(section),
-            addSectionContent: (content: DynamicAccordionSectionContent<Scene>) => sectionContentCollection.add(content),
-            dispose: () => {},
-        };
 
         const registration = shellService.addSidePane({
             key: "Settings",
@@ -135,15 +56,10 @@ export const SettingsServiceDefinition: ServiceDefinition<[ISettingsContext, ISe
                 const sectionContent = useObservableCollection(sectionContentCollection);
                 const scene = useObservableState(() => sceneContext.currentScene, sceneContext.currentSceneObservable);
 
-                const [compactMode, setCompactMode] = useCompactMode();
-                const [disableCopy, setDisableCopy] = useDisableCopy();
-                const [, , resetSidePaneLayout] = useSidePaneDockOverrides();
-
-                const useDegrees = useProperty(settings, "useDegrees");
-                const useEuler = useProperty(settings, "useEuler");
-                const ignoreBackfacesForPicking = useProperty(settings, "ignoreBackfacesForPicking");
-                const showPropertiesOnEntitySelection = useProperty(settings, "showPropertiesOnEntitySelection");
-                const highlightSelectedEntity = useProperty(settings, "highlightSelectedEntity");
+                const [compactMode, setCompactMode] = useSetting(CompactModeSettingDescriptor);
+                const [useDegrees, setUseDegrees] = useSetting(UseDegreesSettingDescriptor);
+                const [useEuler, setUseEuler] = useSetting(UseEulerSettingDescriptor);
+                const [disableCopy, setDisableCopy] = useSetting(DisableCopySettingDescriptor);
 
                 return (
                     <>
@@ -162,25 +78,17 @@ export const SettingsServiceDefinition: ServiceDefinition<[ISettingsContext, ISe
                                         label="Use Degrees"
                                         description="Using degrees instead of radians."
                                         value={useDegrees}
-                                        onChange={(checked) => (settings.useDegrees = checked)}
+                                        onChange={(checked) => {
+                                            setUseDegrees(checked);
+                                        }}
                                     />
                                     <SwitchPropertyLine
                                         label="Only Show Euler Angles"
                                         description="Only show Euler angles in rotation properties, rather than quaternions."
                                         value={useEuler}
-                                        onChange={(checked) => (settings.useEuler = checked)}
-                                    />
-                                    <SwitchPropertyLine
-                                        label="Ignore Backfaces for Picking"
-                                        description="Ignore backfaces when picking."
-                                        value={ignoreBackfacesForPicking}
-                                        onChange={(checked) => (settings.ignoreBackfacesForPicking = checked)}
-                                    />
-                                    <SwitchPropertyLine
-                                        label="Show Properties on Selection"
-                                        description="Shows the Properties pane when an entity is selected."
-                                        value={showPropertiesOnEntitySelection}
-                                        onChange={(checked) => (settings.showPropertiesOnEntitySelection = checked)}
+                                        onChange={(checked) => {
+                                            setUseEuler(checked);
+                                        }}
                                     />
                                     <SwitchPropertyLine
                                         label="Disable Copy Button"
@@ -190,15 +98,6 @@ export const SettingsServiceDefinition: ServiceDefinition<[ISettingsContext, ISe
                                             setDisableCopy(checked);
                                         }}
                                     />
-                                    <ButtonLine label="Reset Layout" onClick={resetSidePaneLayout} />
-                                </AccordionSection>
-                                <AccordionSection title="Scene">
-                                    <SwitchPropertyLine
-                                        label="Highlight Selected Entity"
-                                        description="Highlight the selected mesh in the scene. Enabling this setting may impact rendering performance."
-                                        value={highlightSelectedEntity}
-                                        onChange={(value) => (settings.highlightSelectedEntity = value)}
-                                    />
                                 </AccordionSection>
                             </ExtensibleAccordion>
                         )}
@@ -207,8 +106,12 @@ export const SettingsServiceDefinition: ServiceDefinition<[ISettingsContext, ISe
             },
         });
 
-        settings.dispose = () => registration.dispose();
-
-        return settings;
+        return {
+            addSection: (section) => sectionsCollection.add(section),
+            addSectionContent: (content) => sectionContentCollection.add(content),
+            dispose: () => {
+                registration.dispose();
+            },
+        };
     },
 };

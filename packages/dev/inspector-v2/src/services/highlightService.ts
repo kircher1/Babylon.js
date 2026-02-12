@@ -1,37 +1,50 @@
 import type { Nullable, Observer, Scene } from "core/index";
 import type { ServiceDefinition } from "../modularity/serviceDefinition";
+import type { IGizmoService } from "./gizmoService";
 import type { ISceneContext } from "./sceneContext";
 import type { ISelectionService } from "./selectionService";
-import type { ISettingsContext } from "./settingsContext";
+import type { ISettingsStore, SettingDescriptor } from "./settingsStore";
 import type { IThemeService } from "./themeService";
 
 import { SelectionOutlineLayer } from "core/Layers/selectionOutlineLayer";
 import { Color3 } from "core/Maths/math.color";
 import { AbstractMesh } from "core/Meshes/abstractMesh";
 import { GaussianSplattingMesh } from "core/Meshes/GaussianSplatting/gaussianSplattingMesh";
+import { GizmoServiceIdentity } from "./gizmoService";
 import { SceneContextIdentity } from "./sceneContext";
 import { SelectionServiceIdentity } from "./selectionService";
-import { SettingsContextIdentity } from "./settingsContext";
+import { SettingsStoreIdentity } from "./settingsStore";
 import { ThemeServiceIdentity } from "./themeService";
 
-export const HighlightServiceDefinition: ServiceDefinition<[], [ISelectionService, ISceneContext, ISettingsContext, IThemeService]> = {
+export const HighlightSelectedEntitySettingDescriptor: SettingDescriptor<boolean> = {
+    key: "HighlightSelectedEntity",
+    defaultValue: true,
+};
+
+export const HighlightServiceDefinition: ServiceDefinition<[], [ISelectionService, ISceneContext, ISettingsStore, IThemeService, IGizmoService]> = {
     friendlyName: "Highlight Service",
-    consumes: [SelectionServiceIdentity, SceneContextIdentity, SettingsContextIdentity, ThemeServiceIdentity],
-    factory: (selectionService, sceneContext, settingsContext, themeService) => {
+    consumes: [SelectionServiceIdentity, SceneContextIdentity, SettingsStoreIdentity, ThemeServiceIdentity, GizmoServiceIdentity],
+    factory: (selectionService, sceneContext, settingsStore, themeService, gizmoService) => {
         let outlineLayer: Nullable<SelectionOutlineLayer> = null;
+        let utilityLayer: ReturnType<IGizmoService["getUtilityLayer"]> | null = null;
         let currentScene: Nullable<Scene> = null;
         let activeCameraObserver: Nullable<Observer<Scene>> = null;
 
         function disposeOutlineLayer() {
             outlineLayer?.dispose();
             outlineLayer = null;
+
+            utilityLayer?.dispose();
+            utilityLayer = null;
+
             currentScene = null;
         }
 
         function getOrCreateOutlineLayer(scene: Scene): SelectionOutlineLayer {
             if (!outlineLayer || currentScene !== scene) {
                 disposeOutlineLayer();
-                outlineLayer = new SelectionOutlineLayer("InspectorSelectionOutline", scene);
+                utilityLayer = gizmoService.getUtilityLayer(scene);
+                outlineLayer = new SelectionOutlineLayer("InspectorSelectionOutline", utilityLayer.value.utilityLayerScene);
                 updateColor(outlineLayer);
                 currentScene = scene;
             }
@@ -49,7 +62,7 @@ export const HighlightServiceDefinition: ServiceDefinition<[], [ISelectionServic
                     ? selectionService.selectedEntity
                     : null;
 
-            if (!entity || !settingsContext.highlightSelectedEntity || !scene || !scene.activeCamera) {
+            if (!entity || !settingsStore.readSetting(HighlightSelectedEntitySettingDescriptor) || !scene || !scene.activeCamera) {
                 disposeOutlineLayer();
                 return;
             }
@@ -86,8 +99,12 @@ export const HighlightServiceDefinition: ServiceDefinition<[], [ISelectionServic
             updateHighlight();
         });
 
-        // React to settings changes.
-        const settingsObserver = settingsContext.settingsChangedObservable.add(updateHighlight);
+        // React to setting changes.
+        const settingObserver = settingsStore.onChanged.add((setting) => {
+            if (setting === HighlightSelectedEntitySettingDescriptor.key) {
+                updateHighlight();
+            }
+        });
 
         // Watch active camera on the initial scene.
         watchActiveCamera(sceneContext.currentScene);
@@ -100,7 +117,7 @@ export const HighlightServiceDefinition: ServiceDefinition<[], [ISelectionServic
                 themeObserver.remove();
                 selectionObserver.remove();
                 sceneObserver.remove();
-                settingsObserver.remove();
+                settingObserver.remove();
                 activeCameraObserver?.remove();
                 activeCameraObserver = null;
                 disposeOutlineLayer();

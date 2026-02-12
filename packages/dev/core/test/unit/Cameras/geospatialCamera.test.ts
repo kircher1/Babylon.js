@@ -62,7 +62,7 @@ describe("GeospatialCamera", () => {
             const north = new Vector3();
             const up = new Vector3();
 
-            ComputeLocalBasisToRefs(worldPos, east, north, up);
+            ComputeLocalBasisToRefs(worldPos, east, north, up, true);
 
             // Up should point outward (same direction as position)
             expect(vectorsApproxEqual(up, new Vector3(1, 0, 0))).toBe(true);
@@ -88,7 +88,7 @@ describe("GeospatialCamera", () => {
             const north = new Vector3();
             const up = new Vector3();
 
-            ComputeLocalBasisToRefs(worldPos, east, north, up);
+            ComputeLocalBasisToRefs(worldPos, east, north, up, true);
 
             // Up should point toward Y+
             expect(vectorsApproxEqual(up, new Vector3(0, 1, 0))).toBe(true);
@@ -108,7 +108,7 @@ describe("GeospatialCamera", () => {
             const north = new Vector3();
             const up = new Vector3();
 
-            ComputeLocalBasisToRefs(worldPos, east, north, up);
+            ComputeLocalBasisToRefs(worldPos, east, north, up, true);
 
             // Up should point toward Z+ (outward from north pole)
             expect(vectorsApproxEqual(up, new Vector3(0, 0, 1))).toBe(true);
@@ -128,7 +128,7 @@ describe("GeospatialCamera", () => {
             const north = new Vector3();
             const up = new Vector3();
 
-            ComputeLocalBasisToRefs(worldPos, east, north, up);
+            ComputeLocalBasisToRefs(worldPos, east, north, up, true);
 
             // Up should point toward Z- (outward from south pole)
             expect(vectorsApproxEqual(up, new Vector3(0, 0, -1))).toBe(true);
@@ -150,7 +150,7 @@ describe("GeospatialCamera", () => {
             const north = new Vector3();
             const up = new Vector3();
 
-            ComputeLocalBasisToRefs(worldPos, east, north, up);
+            ComputeLocalBasisToRefs(worldPos, east, north, up, true);
 
             // Up should be normalized position
             const expectedUp = worldPos.clone().normalize();
@@ -165,6 +165,61 @@ describe("GeospatialCamera", () => {
             expect(arePerpendicular(north, up)).toBe(true);
 
             // North should have positive Z component (pointing toward north pole)
+            expect(north.z).toBeGreaterThan(0);
+        });
+
+        it("should produce a left-handed basis with east flipped compared to right-handed", () => {
+            const worldPos = new Vector3(6371, 0, 0); // Equator, 0° lon
+            const eastRH = new Vector3();
+            const northRH = new Vector3();
+            const upRH = new Vector3();
+            const eastLH = new Vector3();
+            const northLH = new Vector3();
+            const upLH = new Vector3();
+
+            ComputeLocalBasisToRefs(worldPos, eastRH, northRH, upRH, true);
+            ComputeLocalBasisToRefs(worldPos, eastLH, northLH, upLH, false);
+
+            // Up should be the same in both handedness
+            expect(vectorsApproxEqual(upRH, upLH)).toBe(true);
+
+            // Right-handed east should be geographic east (+Y at equator on X+ axis)
+            expect(vectorsApproxEqual(eastRH, new Vector3(0, 1, 0))).toBe(true);
+            // Left-handed east should be -Y (encodes handedness so yawScale is not needed)
+            expect(vectorsApproxEqual(eastLH, new Vector3(0, -1, 0))).toBe(true);
+
+            // Left-handed basis should still be orthonormal
+            expect(isUnitVector(eastLH)).toBe(true);
+            expect(isUnitVector(northLH)).toBe(true);
+            expect(isUnitVector(upLH)).toBe(true);
+            expect(arePerpendicular(eastLH, northLH)).toBe(true);
+            expect(arePerpendicular(eastLH, upLH)).toBe(true);
+            expect(arePerpendicular(northLH, upLH)).toBe(true);
+        });
+
+        it("should produce a left-handed basis at 45° latitude", () => {
+            const lat = Math.PI / 4;
+            const r = 6371;
+            const worldPos = new Vector3(r * Math.cos(lat), 0, r * Math.sin(lat));
+            const east = new Vector3();
+            const north = new Vector3();
+            const up = new Vector3();
+
+            ComputeLocalBasisToRefs(worldPos, east, north, up, false);
+
+            // Up should be normalized position (same regardless of handedness)
+            const expectedUp = worldPos.clone().normalize();
+            expect(vectorsApproxEqual(up, expectedUp)).toBe(true);
+
+            // All should be unit and perpendicular
+            expect(isUnitVector(east)).toBe(true);
+            expect(isUnitVector(north)).toBe(true);
+            expect(isUnitVector(up)).toBe(true);
+            expect(arePerpendicular(east, north)).toBe(true);
+            expect(arePerpendicular(east, up)).toBe(true);
+            expect(arePerpendicular(north, up)).toBe(true);
+
+            // North should still have positive Z component
             expect(north.z).toBeGreaterThan(0);
         });
     });

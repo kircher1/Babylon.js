@@ -3688,10 +3688,88 @@
             "referenceImage": "particles-animations-2.png"
         },
         {
+            "title": "Particles - Ramp Gradient",
+            "playgroundId": "#I2D9MM#10",
+            "renderCount": 120,
+            "referenceImage": "particles-ramp-gradient.png"
+        },
+        {
+            "title": "Particles - Ramp Gradient Remap",
+            "playgroundId": "#I2D9MM#11",
+            "renderCount": 120,
+            "referenceImage": "particles-ramp-gradient-remap.png"
+        },
+        {
+            "title": "Particles - Ramp Gradient Remap Alpha",
+            "playgroundId": "#I2D9MM#13",
+            "renderCount": 120,
+            "referenceImage": "particles-ramp-gradient-remap-alpha.png"
+        },
+        {
+            "title": "Particles - Billboard Y",
+            "playgroundId": "#T3ZCP7#5",
+            "renderCount": 180,
+            "referenceImage": "particles-billboard-y.png"
+        },
+        {
+            "title": "Particles - Billboard False",
+            "playgroundId": "#XWG0HV#4",
+            "renderCount": 120,
+            "referenceImage": "particles-billboard-false.png"
+        },
+        {
+            "title": "Particles - Multiply Blend",
+            "playgroundId": "#M1HYFH#6",
+            "renderCount": 120,
+            "referenceImage": "particles-multiply-blend.png"
+        },
+        {
+            "title": "Particles - Ramp Blend",
+            "playgroundId": "#XPVJMM#2",
+            "renderCount": 120,
+            "referenceImage": "particles-ramp-blend.png"
+        },
+        {
             "title": "Particles - Effects",
             "playgroundId": "#1ASENS#424",
             "renderCount": 120,
             "referenceImage": "particles-effects.png"
+        },
+        {
+            "title": "Particles - Helper - Sun",
+            "playgroundId": "#A97UQ6#5",
+            "renderCount": 120,
+            "referenceImage": "particles-helper-sun.png"
+        },
+        {
+            "title": "Particles - Helper - Smoke",
+            "playgroundId": "#XRRTC0#2",
+            "renderCount": 120,
+            "referenceImage": "particles-helper-smoke.png"
+        },
+        {
+            "title": "Particles - Helper - Fire",
+            "playgroundId": "#I2D9MM#14",
+            "renderCount": 120,
+            "referenceImage": "particles-helper-fire.png"
+        },
+        {
+            "title": "Particles - Attractors",
+            "playgroundId": "#DEZ79M#73",
+            "renderCount": 240,
+            "referenceImage": "particles-attractors.png"
+        },
+        {
+            "title": "Particles - Flowmaps",
+            "playgroundId": "#M58G3X#4",
+            "renderCount": 240,
+            "referenceImage": "particles-flowmaps.png"
+        },
+        {
+            "title": "Particles - Flowmaps 2",
+            "playgroundId": "#PPC2EI#5",
+            "renderCount": 120,
+            "referenceImage": "particles-flowmaps-2.png"
         }
     ]
 }

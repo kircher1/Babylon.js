@@ -67,6 +67,7 @@ import { PickingServiceDefinition } from "./services/pickingService";
 import { SceneContextIdentity } from "./services/sceneContext";
 import { SelectionServiceDefinition } from "./services/selectionService";
 import { ShellServiceIdentity } from "./services/shellService";
+import { ShellSettingsServiceDefinition } from "./services/shellSettingsService";
 import { TextureEditorServiceDefinition } from "./services/textureEditor/textureEditorService";
 import { UserFeedbackServiceDefinition } from "./services/userFeedbackService";
 
@@ -339,6 +340,7 @@ export function ShowInspector(scene: Scene, options: Partial<InspectorOptions> =
 
             // Settings pane tab and related services.
             SettingsServiceDefinition,
+            ShellSettingsServiceDefinition,
 
             // Tracks entity selection state (e.g. which Mesh or Material or other entity is currently selected in scene explorer and bound to the properties pane, etc.).
             SelectionServiceDefinition,
@@ -363,6 +365,7 @@ export function ShowInspector(scene: Scene, options: Partial<InspectorOptions> =
         );
 
         const modularTool = MakeModularTool({
+            namespace: "Inspector",
             containerElement,
             serviceDefinitions: [
                 // Default Inspector services.

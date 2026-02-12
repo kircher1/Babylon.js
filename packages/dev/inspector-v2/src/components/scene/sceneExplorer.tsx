@@ -30,15 +30,15 @@ import {
 } from "@fluentui/react-components";
 import { ArrowCollapseAllRegular, ArrowExpandAllRegular, createFluentIcon, FilterRegular, GlobeRegular, TextSortAscendingRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalStorage } from "usehooks-ts";
 
 import { UniqueIdGenerator } from "core/Misc/uniqueIdGenerator";
 import { ToggleButton } from "shared-ui-components/fluent/primitives/toggleButton";
 import { CustomTokens } from "shared-ui-components/fluent/primitives/utils";
 import { useObservableState } from "../../hooks/observableHooks";
 import { useResource } from "../../hooks/resourceHooks";
-import { useCompactMode } from "../../hooks/settingsHooks";
+import { useSetting } from "../../hooks/settingsHooks";
 import { TraverseGraph } from "../../misc/graphUtils";
+import { CompactModeSettingDescriptor } from "../../services/globalSettings";
 import { useSceneExplorerDragDrop } from "./sceneExplorerDragDrop";
 
 type EntityBase = Readonly<{
@@ -519,7 +519,7 @@ const SceneTreeItem: FunctionComponent<{
     const { isSelected, select } = props;
 
     const classes = useStyles();
-    const [compactMode] = useCompactMode();
+    const [compactMode] = useSetting(CompactModeSettingDescriptor);
     const treeItemLayoutClass = mergeClasses(classes.sceneTreeItemLayout, compactMode ? classes.treeItemLayoutCompact : undefined);
 
     return (
@@ -561,7 +561,7 @@ const SectionTreeItem: FunctionComponent<
     const { section, isFiltering, commandProviders, expandAll, collapseAll, isDropTarget, ...dropProps } = props;
 
     const classes = useStyles();
-    const [compactMode] = useCompactMode();
+    const [compactMode] = useSetting(CompactModeSettingDescriptor);
 
     // Get the commands that apply to this section.
     const commands = useResource(
@@ -637,7 +637,7 @@ const EntityTreeItem: FunctionComponent<
     const { entityItem, isSelected, select, isFiltering, commandProviders, expandAll, collapseAll, isDragging, isDropTarget, ...dragProps } = props;
 
     const classes = useStyles();
-    const [compactMode] = useCompactMode();
+    const [compactMode] = useSetting(CompactModeSettingDescriptor);
 
     const hasChildren = !!entityItem.children?.length;
 
@@ -853,7 +853,7 @@ export const SceneExplorer: FunctionComponent<{
     };
 
     const [itemsFilter, setItemsFilter] = useState("");
-    const [isSorted, setIsSorted] = useLocalStorage("Babylon/Settings/SceneExplorer/IsSorted", false);
+    const [isSorted, setIsSorted] = useSetting({ key: "SceneExplorer/IsSorted", defaultValue: false });
 
     // Drag-drop state
     const { draggedEntity, dropTarget, dropTargetIsRoot, createDragProps, createSectionDropProps } = useSceneExplorerDragDrop({
@@ -922,7 +922,7 @@ export const SceneExplorer: FunctionComponent<{
         };
 
         for (const section of sections) {
-            const rootEntities = section.getRootEntities();
+            const rootEntities = (section.getRootEntities() as EntityBase[]).filter((entity) => !entity.reservedDataStore?.hidden);
 
             const sectionTreeItem = {
                 type: "section",
@@ -1020,9 +1020,6 @@ export const SceneExplorer: FunctionComponent<{
                     // Before traverse
                     (treeItem) => {
                         traversedItems.push(treeItem);
-                        if (treeItem.entity.reservedDataStore?.hidden) {
-                            return; // Don't display the treeItem or its children if reservedDataStore.hidden is true
-                        }
                         if (!filter) {
                             // If there is no filter and we made it this far, then the item's parent is in an open state and this item is visible.
                             visibleItems.add(treeItem);

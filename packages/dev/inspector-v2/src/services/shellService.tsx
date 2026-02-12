@@ -3,6 +3,7 @@ import type { ComponentType, FunctionComponent } from "react";
 
 import type { IDisposable, Nullable } from "core/index";
 import type { IService, ServiceDefinition } from "../modularity/serviceDefinition";
+import type { SettingDescriptor } from "./settingsStore";
 
 import {
     Button,
@@ -47,10 +48,37 @@ import { ErrorBoundary } from "../components/errorBoundary";
 import { TeachingMoment } from "../components/teachingMoment";
 import { Theme } from "../components/theme";
 import { useOrderedObservableCollection } from "../hooks/observableHooks";
-import { useSidePaneDockOverrides } from "../hooks/settingsHooks";
+import { useSetting } from "../hooks/settingsHooks";
 import { MakePopoverTeachingMoment } from "../hooks/teachingMomentHooks";
 import { useResizeHandle } from "../hooks/useResizeHandle";
 import { ObservableCollection } from "../misc/observableCollection";
+
+export const SidePaneDockOverridesSettingDescriptor: SettingDescriptor<
+    Record<string, Readonly<{ horizontalLocation: HorizontalLocation; verticalLocation: VerticalLocation }> | undefined>
+> = {
+    key: "SidePaneDockOverrides",
+    defaultValue: {},
+};
+
+export const LeftSidePaneWidthAdjustSettingDescriptor: SettingDescriptor<number> = {
+    key: "Shell/LeftPane/WidthAdjust",
+    defaultValue: 0,
+};
+
+export const LeftSidePaneHeightAdjustSettingDescriptor: SettingDescriptor<number> = {
+    key: "Shell/LeftPane/HeightAdjust",
+    defaultValue: 0,
+};
+
+export const RightSidePaneWidthAdjustSettingDescriptor: SettingDescriptor<number> = {
+    key: "Shell/RightPane/WidthAdjust",
+    defaultValue: 0,
+};
+
+export const RightSidePaneHeightAdjustSettingDescriptor: SettingDescriptor<number> = {
+    key: "Shell/RightPane/HeightAdjust",
+    defaultValue: 0,
+};
 
 export type HorizontalLocation = "left" | "right";
 export type VerticalLocation = "top" | "bottom";
@@ -225,11 +253,6 @@ export interface IShellService extends IService<typeof ShellServiceIdentity> {
      * @param content Defines the content area to add.
      */
     addCentralContent(content: Readonly<CentralContentDefinition>): IDisposable;
-
-    /**
-     * Resets the side pane layout to the default configuration.
-     */
-    resetSidePaneLayout(): void;
 
     /**
      * The left side pane container.
@@ -724,8 +747,8 @@ function usePane(
         setCollapsed((collapsed) => !collapsed);
     }, []);
 
-    const widthStorageKey = `Babylon/Settings/${location}Pane/WidthAdjust`;
-    const heightStorageKey = `Babylon/Settings/${location}Pane/HeightAdjust`;
+    const [paneWidthSetting, setPaneWidthSetting] = useSetting(location === "left" ? LeftSidePaneWidthAdjustSettingDescriptor : RightSidePaneWidthAdjustSettingDescriptor);
+    const [paneHeightSetting, setPaneHeightSetting] = useSetting(location === "left" ? LeftSidePaneHeightAdjustSettingDescriptor : RightSidePaneHeightAdjustSettingDescriptor);
 
     const currentSidePanes = useMemo(() => sidePanes.filter((entry) => entry.horizontalLocation === location), [sidePanes, location]);
     const topPanes = useMemo(() => currentSidePanes.filter((entry) => entry.verticalLocation === "top"), [currentSidePanes]);
@@ -938,7 +961,7 @@ function usePane(
         minValue: minWidth - defaultWidth,
         onChange: (value) => {
             // Whenever the width is adjusted, store the value.
-            localStorage.setItem(widthStorageKey, value.toString());
+            setPaneWidthSetting(value);
         },
     });
 
@@ -953,22 +976,15 @@ function usePane(
         variableName: paneHeightAdjustCSSVar,
         onChange: (value) => {
             // Whenever the height is adjusted, store the value.
-            localStorage.setItem(heightStorageKey, value.toString());
+            setPaneHeightSetting(value);
         },
     });
 
     // This ensures that when the component is first rendered, the CSS variable is set from storage.
     useLayoutEffect(() => {
-        const storedPaneWidthAdjust = localStorage.getItem(widthStorageKey);
-        if (storedPaneWidthAdjust) {
-            setPaneWidthAdjust(Number.parseInt(storedPaneWidthAdjust));
-        }
-
-        const storedPaneHeightAdjust = localStorage.getItem(heightStorageKey);
-        if (storedPaneHeightAdjust) {
-            setPaneHeightAdjust(Number.parseInt(storedPaneHeightAdjust));
-        }
-    }, []);
+        setPaneWidthAdjust(paneWidthSetting);
+        setPaneHeightAdjust(paneHeightSetting);
+    }, [paneWidthSetting, paneHeightSetting]);
 
     // This effect closes the window if all panes have been removed.
     useEffect(() => {
@@ -1121,7 +1137,7 @@ export function MakeShellServiceDefinition({
     sidePaneRemapper = undefined,
 }: ShellServiceOptions = {}): ServiceDefinition<[IShellService, IRootComponentService], []> {
     return {
-        friendlyName: "MainView",
+        friendlyName: "Shell Service",
         produces: [ShellServiceIdentity, RootComponentServiceIdentity],
         factory: () => {
             const toolbarItemCollection = new ObservableCollection<Readonly<ToolbarItemDefinition>>();
@@ -1154,7 +1170,7 @@ export function MakeShellServiceDefinition({
             const rootComponent: FunctionComponent = () => {
                 const classes = useStyles();
 
-                const [sidePaneDockOverrides, setSidePaneDockOverrides] = useSidePaneDockOverrides();
+                const [sidePaneDockOverrides, setSidePaneDockOverrides] = useSetting(SidePaneDockOverridesSettingDescriptor);
 
                 // This function returns a promise that resolves after the dock change takes effect so that
                 // we can then select the re-docked pane.
@@ -1477,7 +1493,6 @@ export function MakeShellServiceDefinition({
                     return sidePaneCollection.add(entry);
                 },
                 addCentralContent: (entry) => centralContentCollection.add(entry),
-                resetSidePaneLayout: () => localStorage.removeItem("Babylon/Settings/SidePaneDockOverrides"),
                 get leftSidePaneContainer() {
                     return leftSidePaneContainerState.isPresent ? leftSidePaneContainerState : null;
                 },
