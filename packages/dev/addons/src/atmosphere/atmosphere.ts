@@ -17,12 +17,14 @@ import { EffectRenderer, EffectWrapper } from "core/Materials/effectRenderer";
 import type { IAtmosphereOptions } from "./atmosphereOptions";
 import type { IColor3Like, IVector3Like } from "core/Maths/math.like";
 import type { IDisposable, Scene } from "core/scene";
+import { Mesh } from "core/Meshes/mesh";
 import { Observable, type Observer } from "core/Misc/observable";
 import { RegisterMaterialPlugin, UnregisterMaterialPlugin } from "core/Materials/materialPluginManager";
 import type { RenderingGroupInfo } from "core/Rendering/renderingManager";
 import { RenderTargetTexture, type RenderTargetTextureOptions } from "core/Materials/Textures/renderTargetTexture";
 import type { RenderTargetWrapper } from "core/Engines/renderTargetWrapper";
 import { ShaderLanguage } from "core/Materials/shaderLanguage";
+import { SubMesh } from "core/Meshes/subMesh";
 import { TransmittanceLut } from "./transmittanceLut";
 import { UniformBuffer } from "core/Materials/uniformBuffer";
 import { Vector3 } from "core/Maths/math.vector";
@@ -32,6 +34,23 @@ const MaterialPlugin = "atmo-pbr";
 const AerialPerspectiveLutLayers = 32;
 
 let UniqueId = 0;
+
+// Creates a sentinel mesh that delegates isReady() to the Atmosphere.
+const CreateSentinelMesh = (atmosphere: Atmosphere, scene: Scene): Mesh => {
+    const mesh = new Mesh(`__atmosphere_sentinel_${atmosphere.uniqueId}__`, scene);
+    mesh.isVisible = false;
+    mesh.isPickable = false;
+    mesh.doNotSyncBoundingInfo = true;
+
+    // A submesh is required for scene.isReady() to check this mesh.
+    mesh.subMeshes = [];
+    SubMesh.AddToMesh(0, 0, 0, 0, 0, mesh, undefined, false);
+
+    // Delegate isReady to the atmosphere.
+    mesh.isReady = () => atmosphere.isReady();
+
+    return mesh;
+};
 
 /**
  * Renders a physically based atmosphere.
@@ -101,6 +120,7 @@ export class Atmosphere implements IDisposable {
     private _onBeforeRenderObserver: Nullable<Observer<Scene>> = null;
     private _onBeforeDrawPhaseObserver: Nullable<Observer<Scene>> = null;
     private _onAfterRenderingGroupObserver: Nullable<Observer<RenderingGroupInfo>> = null;
+    private _readyCheckSentinelMesh: Nullable<Mesh> = null;
 
     /**
      * Checks if the {@link Atmosphere} is supported.
@@ -736,6 +756,7 @@ export class Atmosphere implements IDisposable {
 
         // Render global LUTs once per frame (not per camera).
         this._onBeforeRenderObserver = scene.onBeforeRenderObservable.add(() => {
+            this._disposeReadyCheckSentinelMesh(); // Dispose ready sentinel mesh as soon as rendering starts.
             this.renderGlobalLuts();
         });
 
@@ -812,12 +833,20 @@ export class Atmosphere implements IDisposable {
             }
             return null;
         });
+
+        this._readyCheckSentinelMesh = CreateSentinelMesh(this, scene);
+    }
+
+    private _disposeReadyCheckSentinelMesh(): void {
+        this._readyCheckSentinelMesh?.dispose();
+        this._readyCheckSentinelMesh = null;
     }
 
     /**
      * @override
      */
     public dispose(): void {
+        this._disposeReadyCheckSentinelMesh();
         this._onBeforeCameraRenderObserver?.remove();
         this._onBeforeCameraRenderObserver = null;
         this._onBeforeDrawPhaseObserver?.remove();
@@ -875,6 +904,74 @@ export class Atmosphere implements IDisposable {
      */
     public setEnabled(enabled: boolean) {
         this._isEnabled = enabled;
+    }
+
+    /**
+     * Returns true if the atmosphere is ready for rendering.
+     * Note, this will cause a render of the global LUTs if they are not up to date.
+     * @returns true if the atmosphere is ready
+     */
+    public isReady(): boolean {
+        if (!this._isEnabled) {
+            return true;
+        }
+
+        this._skyCompositorEffectWrapper ??= CreateSkyCompositorEffectWrapper(
+            this._engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance
+        );
+        this._globeAtmosphereCompositorEffectWrapper ??= CreateGlobeAtmosphereCompositorEffectWrapper(
+            this._engine,
+            this.uniformBuffer,
+            this._isSkyViewLutEnabled,
+            this._isLinearSpaceComposition,
+            this._applyApproximateTransmittance,
+            this._aerialPerspectiveIntensity,
+            this._aerialPerspectiveRadianceBias,
+            this.depthTexture !== null
+        );
+        if (this.depthTexture !== null) {
+            this._aerialPerspectiveCompositorEffectWrapper ??= CreateAerialPerspectiveCompositorEffectWrapper(
+                this._engine,
+                this.uniformBuffer,
+                this._isAerialPerspectiveLutEnabled,
+                this._isSkyViewLutEnabled,
+                this._isLinearSpaceComposition,
+                this._applyApproximateTransmittance,
+                this._aerialPerspectiveIntensity,
+                this._aerialPerspectiveRadianceBias
+            );
+        }
+
+        this.renderGlobalLuts(); // Start rendering of global LUTs during readiness polling.
+
+        if (!this._transmittanceLut?.hasLutData || (this._isDiffuseSkyIrradianceLutEnabled && !this._diffuseSkyIrradianceLut?.hasLutData)) {
+            return false;
+        }
+        if (!this._hasRenderedMultiScatteringLut || this._multiScatteringLutRenderTarget?.isReady() === false || this._multiScatteringEffectWrapper?.isReady() === false) {
+            return false;
+        }
+        if (this._isSkyViewLutEnabled && (this._skyViewLutRenderTarget?.isReady() === false || this._skyViewLutEffectWrapper?.isReady() === false)) {
+            return false;
+        }
+        if (this._isAerialPerspectiveLutEnabled && (this._aerialPerspectiveLutRenderTarget?.isReady() === false || this._aerialPerspectiveLutEffectWrapper?.isReady() === false)) {
+            return false;
+        }
+
+        if (
+            this._skyCompositorEffectWrapper?.isReady() === false ||
+            this._aerialPerspectiveCompositorEffectWrapper?.isReady() === false ||
+            this._globeAtmosphereCompositorEffectWrapper?.isReady() === false
+        ) {
+            return false;
+        }
+
+        this._disposeReadyCheckSentinelMesh();
+
+        return true;
     }
 
     /**

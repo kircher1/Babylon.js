@@ -116,15 +116,20 @@ export class AtmospherePBRMaterialPlugin extends MaterialPluginBase {
      * @override
      */
     public override isReadyForSubMesh(): boolean {
-        let isReady = true;
         const atmosphere = this._atmosphere;
+
+        if (!atmosphere.transmittanceLut?.hasLutData || (atmosphere.diffuseSkyIrradianceLut && !atmosphere.diffuseSkyIrradianceLut.hasLutData)) {
+            return false;
+        }
+
         if (this._isAerialPerspectiveEnabled && atmosphere.isAerialPerspectiveLutEnabled) {
             const aerialPerspectiveLutRenderTarget = atmosphere.aerialPerspectiveLutRenderTarget;
-            isReady = isReady && !!aerialPerspectiveLutRenderTarget?.isReady();
+            if (!aerialPerspectiveLutRenderTarget?.isReady()) {
+                return false;
+            }
         }
-        const transmittanceLutRenderTarget = atmosphere.transmittanceLut?.renderTarget ?? null;
-        isReady = isReady && !!transmittanceLutRenderTarget?.isReady();
-        return isReady;
+
+        return true;
     }
 
     /**
